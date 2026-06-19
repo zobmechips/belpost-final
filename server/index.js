@@ -48,11 +48,15 @@ const rateLimitPublic = createRateLimiter({
 });
 
 const app = express();
-const PORT = Number(process.env.API_PORT ?? 4000);
+const PORT = Number(process.env.PORT ?? process.env.API_PORT ?? 4000);
 const ADMIN_LOGIN = process.env.ADMIN_LOGIN ?? "staryi_";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "viwaldi";
 
 const secureCookie = process.env.NODE_ENV === "production";
+
+if (secureCookie) {
+  app.set("trust proxy", 1);
+}
 
 app.use(
   cors({
