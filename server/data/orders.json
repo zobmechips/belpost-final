@@ -1,0 +1,59 @@
+[
+  {
+    "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "createdAt": "2026-06-10T14:22:00.000Z",
+    "userEmail": "client@belpost.by",
+    "sender": {
+      "name": "Алексей Петров",
+      "phone": "+375291234567",
+      "email": "client@belpost.by"
+    },
+    "recipient": {
+      "name": "Иван Сидоров",
+      "phone": "+375331112233",
+      "email": "ivan@example.com"
+    },
+    "delivery": {
+      "method": "office",
+      "postalCode": "220050"
+    },
+    "items": [
+      {
+        "id": "post-shipment",
+        "title": "Почтовые отправления",
+        "price": 12.5,
+        "qty": 1
+      }
+    ],
+    "total": 12.5
+  },
+  {
+    "id": "061683df-ce4e-42c8-a9ab-3020d64ec31e",
+    "createdAt": "2026-06-17T15:18:03.307Z",
+    "userEmail": "явфвафыафыа@fmail.com",
+    "sender": {
+      "name": "Власенко Вадим Викторович",
+      "phone": "+375293071991",
+      "email": "явфвафыафыа@fmail.com"
+    },
+    "recipient": {
+      "name": "кто",
+      "phone": "+375293071991",
+      "email": "йковфш@GMAIL.COM"
+    },
+    "delivery": {
+      "method": "office",
+      "postalCode": "261261",
+      "address": "Могилев"
+    },
+    "items": [
+      {
+        "id": "finance",
+        "title": "Финансовые услуги",
+        "price": 5,
+        "qty": 1
+      }
+    ],
+    "total": 5
+  }
+]

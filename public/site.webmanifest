@@ -1,0 +1,18 @@
+{
+  "name": "БЕЛПОЧТА",
+  "short_name": "Белпочта",
+  "description": "Национальный оператор почтовой связи Республики Беларусь",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1F6FD8",
+  "theme_color": "#1F6FD8",
+  "lang": "ru",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,62 @@
+[
+  {
+    "id": "home-service",
+    "title": "Предоставление услуг на дому",
+    "price": 18.5
+  },
+  {
+    "id": "forms",
+    "title": "Оформить бланки",
+    "price": 2.2
+  },
+  {
+    "id": "e-stamp",
+    "title": "Электронная марка",
+    "price": 3.8
+  },
+  {
+    "id": "post-shipment",
+    "title": "Почтовые отправления",
+    "price": 6.9
+  },
+  {
+    "id": "finance",
+    "title": "Финансовые услуги",
+    "price": 5
+  },
+  {
+    "id": "subscription",
+    "title": "Подписка на издания",
+    "price": 14.3
+  },
+  {
+    "id": "philately",
+    "title": "Филателия",
+    "price": 9.7
+  },
+  {
+    "id": "international",
+    "title": "Международная доставка",
+    "price": 21
+  },
+  {
+    "id": "courier",
+    "title": "Курьерская доставка",
+    "price": 16.4
+  },
+  {
+    "id": "calculator",
+    "title": "Рассчитать стоимость",
+    "price": 1.5
+  },
+  {
+    "id": "offices",
+    "title": "Сеть отделений",
+    "price": 0
+  },
+  {
+    "id": "ecommerce",
+    "title": "Покупки онлайн",
+    "price": 8.4
+  }
+]

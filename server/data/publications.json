@@ -1,0 +1,82 @@
+[
+  {
+    "id": "pub-sb",
+    "type": "newspaper",
+    "category": "politics",
+    "title": "СБ. Беларусь сегодня",
+    "period": "Еженедельно",
+    "price": 3.9,
+    "priceHalfYear": 22.0,
+    "cover": "https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=500&q=80"
+  },
+  {
+    "id": "pub-pressbol",
+    "type": "magazine",
+    "category": "sport",
+    "title": "Прессбол",
+    "period": "Еженедельно",
+    "price": 5.2,
+    "priceHalfYear": 128.0,
+    "cover": "https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=500&q=80"
+  },
+  {
+    "id": "pub-kacheli",
+    "type": "magazine",
+    "category": "kids",
+    "title": "Качели",
+    "period": "Ежемесячно",
+    "price": 7.8,
+    "priceHalfYear": 42.5,
+    "cover": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=500&q=80"
+  },
+  {
+    "id": "pub-kultura",
+    "type": "magazine",
+    "category": "culture",
+    "title": "Культура",
+    "period": "Ежемесячно",
+    "price": 6.4,
+    "priceHalfYear": 35.0,
+    "cover": "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=500&q=80"
+  },
+  {
+    "id": "pub-zviazda",
+    "type": "newspaper",
+    "category": "politics",
+    "title": "Звязда",
+    "period": "Ежедневно",
+    "price": 3.8,
+    "priceHalfYear": 20.4,
+    "cover": "https://images.unsplash.com/photo-1586339949916-3e9457bef6d3?w=500&q=80"
+  },
+  {
+    "id": "pub-niva",
+    "type": "magazine",
+    "category": "culture",
+    "title": "Наша Ніва",
+    "period": "Ежемесячно",
+    "price": 12.5,
+    "priceHalfYear": 68.0,
+    "cover": "https://images.unsplash.com/photo-1524995995648-beda9c2e4bf1?w=500&q=80"
+  },
+  {
+    "id": "pub-football",
+    "type": "magazine",
+    "category": "sport",
+    "title": "Футбол. Хоккей",
+    "period": "Еженедельно",
+    "price": 4.6,
+    "priceHalfYear": 115.0,
+    "cover": "https://images.unsplash.com/photo-1461896836934-ffe607cd7f40?w=500&q=80"
+  },
+  {
+    "id": "pub-detsky",
+    "type": "magazine",
+    "category": "kids",
+    "title": "Детский мир",
+    "period": "Ежемесячно",
+    "price": 8.7,
+    "priceHalfYear": 47.0,
+    "cover": "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=500&q=80"
+  }
+]

@@ -1,0 +1,56 @@
+[
+  {
+    "id": "rev-1",
+    "name": "Лидия И.",
+    "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Lidia",
+    "rating": 5,
+    "date": "2026-06-12",
+    "text": "Оформила подписку на газету онлайн — всё пришло вовремя, курьер вежливый. Отслеживание посылки работает безупречно.",
+    "source": "Яндекс Карты"
+  },
+  {
+    "id": "rev-2",
+    "name": "Антон Б.",
+    "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Anton",
+    "rating": 5,
+    "date": "2026-06-08",
+    "text": "Заказывал марки для коллекции через филателию. Быстрая доставка, аккуратная упаковка. Рекомендую Белпочту!",
+    "source": "Google Maps"
+  },
+  {
+    "id": "rev-3",
+    "name": "Марина К.",
+    "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Marina",
+    "rating": 5,
+    "date": "2026-06-05",
+    "text": "Отправила посылку сыну в Польшу — трек-номер обновлялся каждый день. Сервис на высшем уровне.",
+    "source": "Яндекс Карты"
+  },
+  {
+    "id": "rev-4",
+    "name": "Дмитрий С.",
+    "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Dmitry",
+    "rating": 5,
+    "date": "2026-05-28",
+    "text": "Пользуюсь личным кабинетом — удобно видеть все заказы и отслеживать посылки в одном месте.",
+    "source": "Google Maps"
+  },
+  {
+    "id": "rev-5",
+    "name": "Елена В.",
+    "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Elena",
+    "rating": 5,
+    "date": "2026-05-20",
+    "text": "Экспресс-доставка по Минску за 2 часа — реально успели! Спасибо контакт-центру за помощь с тарифами.",
+    "source": "Яндекс Карты"
+  },
+  {
+    "id": "rev-6",
+    "name": "Игорь П.",
+    "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=Igor",
+    "rating": 5,
+    "date": "2026-05-15",
+    "text": "Оформил e-commerce доставку для интернет-магазина. Надёжный партнёр для бизнеса.",
+    "source": "Google Maps"
+  }
+]
