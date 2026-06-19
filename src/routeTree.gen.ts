@@ -10,11 +10,13 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SubscriptionRouteImport } from './routes/subscription'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PhilatelyRouteImport } from './routes/philately'
 import { Route as FeedbackRouteImport } from './routes/feedback'
 import { Route as ExpressDeliveryRouteImport } from './routes/express-delivery'
 import { Route as EcommerceEliteRouteImport } from './routes/ecommerce-elite'
+import { Route as CabinetRouteImport } from './routes/cabinet'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
@@ -22,6 +24,11 @@ import { Route as IndexRouteImport } from './routes/index'
 const SubscriptionRoute = SubscriptionRouteImport.update({
   id: '/subscription',
   path: '/subscription',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PrivacyRoute = PrivacyRouteImport.update({
@@ -49,6 +56,11 @@ const EcommerceEliteRoute = EcommerceEliteRouteImport.update({
   path: '/ecommerce-elite',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CabinetRoute = CabinetRouteImport.update({
+  id: '/cabinet',
+  path: '/cabinet',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -69,22 +81,26 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/admin': typeof AdminRoute
+  '/cabinet': typeof CabinetRoute
   '/ecommerce-elite': typeof EcommerceEliteRoute
   '/express-delivery': typeof ExpressDeliveryRoute
   '/feedback': typeof FeedbackRoute
   '/philately': typeof PhilatelyRoute
   '/privacy': typeof PrivacyRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/subscription': typeof SubscriptionRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/admin': typeof AdminRoute
+  '/cabinet': typeof CabinetRoute
   '/ecommerce-elite': typeof EcommerceEliteRoute
   '/express-delivery': typeof ExpressDeliveryRoute
   '/feedback': typeof FeedbackRoute
   '/philately': typeof PhilatelyRoute
   '/privacy': typeof PrivacyRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/subscription': typeof SubscriptionRoute
 }
 export interface FileRoutesById {
@@ -92,11 +108,13 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/admin': typeof AdminRoute
+  '/cabinet': typeof CabinetRoute
   '/ecommerce-elite': typeof EcommerceEliteRoute
   '/express-delivery': typeof ExpressDeliveryRoute
   '/feedback': typeof FeedbackRoute
   '/philately': typeof PhilatelyRoute
   '/privacy': typeof PrivacyRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/subscription': typeof SubscriptionRoute
 }
 export interface FileRouteTypes {
@@ -105,33 +123,39 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/admin'
+    | '/cabinet'
     | '/ecommerce-elite'
     | '/express-delivery'
     | '/feedback'
     | '/philately'
     | '/privacy'
+    | '/reset-password'
     | '/subscription'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/about'
     | '/admin'
+    | '/cabinet'
     | '/ecommerce-elite'
     | '/express-delivery'
     | '/feedback'
     | '/philately'
     | '/privacy'
+    | '/reset-password'
     | '/subscription'
   id:
     | '__root__'
     | '/'
     | '/about'
     | '/admin'
+    | '/cabinet'
     | '/ecommerce-elite'
     | '/express-delivery'
     | '/feedback'
     | '/philately'
     | '/privacy'
+    | '/reset-password'
     | '/subscription'
   fileRoutesById: FileRoutesById
 }
@@ -139,11 +163,13 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
   AdminRoute: typeof AdminRoute
+  CabinetRoute: typeof CabinetRoute
   EcommerceEliteRoute: typeof EcommerceEliteRoute
   ExpressDeliveryRoute: typeof ExpressDeliveryRoute
   FeedbackRoute: typeof FeedbackRoute
   PhilatelyRoute: typeof PhilatelyRoute
   PrivacyRoute: typeof PrivacyRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   SubscriptionRoute: typeof SubscriptionRoute
 }
 
@@ -154,6 +180,13 @@ declare module '@tanstack/react-router' {
       path: '/subscription'
       fullPath: '/subscription'
       preLoaderRoute: typeof SubscriptionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/privacy': {
@@ -191,6 +224,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EcommerceEliteRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/cabinet': {
+      id: '/cabinet'
+      path: '/cabinet'
+      fullPath: '/cabinet'
+      preLoaderRoute: typeof CabinetRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin': {
       id: '/admin'
       path: '/admin'
@@ -219,11 +259,13 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
   AdminRoute: AdminRoute,
+  CabinetRoute: CabinetRoute,
   EcommerceEliteRoute: EcommerceEliteRoute,
   ExpressDeliveryRoute: ExpressDeliveryRoute,
   FeedbackRoute: FeedbackRoute,
   PhilatelyRoute: PhilatelyRoute,
   PrivacyRoute: PrivacyRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   SubscriptionRoute: SubscriptionRoute,
 }
 export const routeTree = rootRouteImport

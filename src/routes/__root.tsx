@@ -14,6 +14,7 @@ import { reportLovableError } from "../lib/lovable-error-reporting";
 import { ScrollProgressBar } from "../components/belpost/ScrollProgressBar";
 import { SmoothScrollProvider } from "../components/belpost/SmoothScrollProvider";
 import { AppProvider } from "../context/AppProvider";
+import { ContactFab } from "../components/support/ContactFab";
 
 function NotFoundComponent() {
   return (
@@ -126,6 +127,7 @@ function RootComponent() {
         <SmoothScrollProvider>
           <ScrollProgressBar />
           <Outlet />
+          <ContactFab />
         </SmoothScrollProvider>
       </AppProvider>
     </QueryClientProvider>

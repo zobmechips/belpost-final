@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { ChevronDown, Headphones, Moon, ShoppingBag, Sun, User } from "lucide-react";
+import { ChevronDown, Headphones, ShoppingBag, User } from "lucide-react";
 import { useState } from "react";
 import { ContactDropdown } from "@/components/layout/ContactDropdown";
 import { NotificationBell } from "@/components/layout/NotificationBell";
@@ -14,7 +14,7 @@ type SiteHeaderProps = {
 };
 
 export function SiteHeader({ onCartOpen, onAuthOpen, onCabinetOpen }: SiteHeaderProps) {
-  const { tr, lang, setLang, toggleA11y, a11y, user, cartCount, pushToast, theme, toggleTheme } = useApp();
+  const { tr, lang, setLang, toggleA11y, a11y, user, cartCount, pushToast } = useApp();
   const [contactOpen, setContactOpen] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
   const [a11yModal, setA11yModal] = useState(false);
@@ -69,10 +69,7 @@ export function SiteHeader({ onCartOpen, onAuthOpen, onCabinetOpen }: SiteHeader
             </div>
           )}
         </div>
-        <button type="button" onClick={toggleTheme} className="theme-toggle ml-2" aria-label={theme === "dark" ? "Светлая тема" : "Тёмная тема"}>
-          {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-        </button>
-        <NotificationBell />
+        {user && <NotificationBell />}
         {user ? (
           <button type="button" onClick={onCabinetOpen} className="ml-5 flex items-center gap-2 text-white hover:opacity-80">
             <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/20 text-xs font-bold">
@@ -88,8 +85,8 @@ export function SiteHeader({ onCartOpen, onAuthOpen, onCabinetOpen }: SiteHeader
       </div>
 
       <header className="relative">
-        <div className="mx-auto flex max-w-[1400px] items-center gap-6 px-6 pb-2 pt-2">
-          <Link to="/" className="flex items-center">
+        <div className="site-header-bar mx-auto flex max-w-[1400px] items-center gap-3 px-4 py-2 sm:px-6">
+          <Link to="/" className="flex min-w-0 items-center">
             <span className="text-[26px] font-black tracking-wide text-white">БЕЛПОЧТА</span>
           </Link>
           <p className="ml-1 hidden max-w-[220px] text-[12px] leading-tight text-white/95 sm:block">{tr("header", "tagline")}</p>
@@ -124,6 +121,9 @@ export function SiteHeader({ onCartOpen, onAuthOpen, onCabinetOpen }: SiteHeader
 
       <FluidModal open={a11yModal} title={tr("accessibility", "title")} onClose={() => setA11yModal(false)}>
         <p className="text-sm leading-relaxed text-slate-600">{tr("accessibility", "text")}</p>
+        <Link to="/about" hash="offices-map" className="btn-primary mt-4 inline-flex" onClick={() => setA11yModal(false)}>
+          Карта отделений и электронная очередь
+        </Link>
       </FluidModal>
     </>
   );

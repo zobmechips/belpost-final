@@ -7,18 +7,20 @@ type MagneticCardProps = {
   className?: string;
   onClick?: () => void;
   footer?: ReactNode;
+  lite?: boolean;
 };
 
-export function MagneticCard({ children, className = "", onClick, footer }: MagneticCardProps) {
+export function MagneticCard({ children, className = "", onClick, footer, lite = false }: MagneticCardProps) {
   const { reduceMotion } = useApp();
   const ref = useRef<HTMLDivElement>(null);
   const x = useMotionValue(0);
   const y = useMotionValue(0);
   const springX = useSpring(x, { stiffness: 90, damping: 18 });
   const springY = useSpring(y, { stiffness: 90, damping: 18 });
+  const motionOff = reduceMotion || lite;
 
   const handleMouseMove = (event: React.MouseEvent) => {
-    if (reduceMotion || !ref.current) return;
+    if (motionOff || !ref.current) return;
     const rect = ref.current.getBoundingClientRect();
     const offsetX = event.clientX - (rect.left + rect.width / 2);
     const offsetY = event.clientY - (rect.top + rect.height / 2);
@@ -56,9 +58,9 @@ export function MagneticCard({ children, className = "", onClick, footer }: Magn
       onKeyDown={onKeyDown}
       onMouseMove={handleMouseMove}
       onMouseLeave={reset}
-      style={reduceMotion ? undefined : { x: springX, y: springY }}
-      whileHover={reduceMotion || !onClick ? undefined : { scale: 1.018 }}
-      whileTap={reduceMotion || !onClick ? undefined : { scale: 0.992 }}
+      style={motionOff ? undefined : { x: springX, y: springY }}
+      whileHover={motionOff || !onClick ? undefined : { scale: 1.018 }}
+      whileTap={motionOff || !onClick ? undefined : { scale: 0.992 }}
       className={`magnetic-card group h-full ${className}`}
     >
       <span className="magnetic-card-glow" aria-hidden />

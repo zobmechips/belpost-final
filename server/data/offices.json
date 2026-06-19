@@ -1,0 +1,62 @@
+[
+  {
+    "id": "minsk-central",
+    "number": "101",
+    "city": "Минск",
+    "address": "пр. Независимости, 10",
+    "hours": "Пн–Сб 8:00–20:00, Вс 9:00–17:00",
+    "lat": 53.8985,
+    "lng": 27.5478,
+    "accessible": true
+  },
+  {
+    "id": "gomel-central",
+    "number": "201",
+    "city": "Гомель",
+    "address": "пр. Речицкий, 5",
+    "hours": "Пн–Сб 8:00–19:00",
+    "lat": 52.4242,
+    "lng": 30.9754,
+    "accessible": true
+  },
+  {
+    "id": "brest-central",
+    "number": "301",
+    "city": "Брест",
+    "address": "ул. Московская, 202",
+    "hours": "Пн–Сб 8:30–18:30",
+    "lat": 52.0976,
+    "lng": 23.7341,
+    "accessible": true
+  },
+  {
+    "id": "grodno-central",
+    "number": "401",
+    "city": "Гродно",
+    "address": "ул. Ожешко, 38",
+    "hours": "Пн–Сб 8:00–18:30",
+    "lat": 53.6694,
+    "lng": 23.8131,
+    "accessible": true
+  },
+  {
+    "id": "mogilev-central",
+    "number": "501",
+    "city": "Могилёв",
+    "address": "ул. Первомайская, 57",
+    "hours": "Пн–Сб 8:30–19:00",
+    "lat": 53.8945,
+    "lng": 30.3307,
+    "accessible": true
+  },
+  {
+    "id": "vitebsk-central",
+    "number": "601",
+    "city": "Витебск",
+    "address": "ул. Ленина, 61",
+    "hours": "Пн–Сб 8:00–18:00",
+    "lat": 55.1904,
+    "lng": 30.2049,
+    "accessible": true
+  }
+]

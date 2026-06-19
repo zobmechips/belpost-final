@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { motion, useInView } from "framer-motion";
 import { useRef } from "react";
 import { ScrollReveal, ScrollRevealGroup, ScrollRevealItem } from "@/components/belpost/ScrollReveal";
-import { OfficesMap } from "@/components/map/OfficesMap";
+import { YandexOfficesMap } from "@/components/map/YandexOfficesMap";
 import { SiteLayout } from "@/components/layout/SiteLayout";
 import { useApp } from "@/context/AppProvider";
 
@@ -49,8 +49,8 @@ function AboutPage() {
             </ScrollRevealItem>
           ))}
         </ScrollRevealGroup>
-        <div className="mt-12">
-          <OfficesMap />
+        <div className="mt-12" id="offices-map">
+          <YandexOfficesMap />
         </div>
       </div>
     </SiteLayout>

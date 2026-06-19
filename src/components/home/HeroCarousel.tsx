@@ -92,17 +92,17 @@ export function HeroBackground({ parallaxX, parallaxY, slideIndex }: HeroBackgro
 
   return (
     <div className="absolute inset-0 z-0 overflow-hidden">
-      <AnimatePresence mode="wait">
+      <AnimatePresence initial={false}>
         <motion.img
           key={slide.image}
           src={slide.image}
           alt=""
-          className="h-full w-full object-cover"
+          className="absolute inset-0 h-full w-full object-cover"
           style={{ x: parallaxX, y: parallaxY, scale: 1.08 }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: reduceMotion ? 0.2 : 0.45, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ duration: reduceMotion ? 0.2 : 1.1, ease: [0.4, 0, 0.2, 1] }}
         />
       </AnimatePresence>
       <motion.div className="hero-gradient absolute inset-0" style={{ x: parallaxX, y: parallaxY }} />
@@ -155,32 +155,35 @@ export function HeroCarousel({ slideIndex, onSlideChange }: HeroCarouselProps) {
   return (
     <div className="flex min-h-[460px] items-center">
       <div className="relative w-full max-w-xl text-white">
-        <AnimatePresence mode="wait" custom={direction}>
-          <motion.div
-            key={slide.id}
-            custom={direction}
-            initial={{ opacity: 0, x: direction * 60 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: direction * -60 }}
-            transition={{ duration: reduceMotion ? 0.15 : 0.4, ease: [0.22, 1, 0.36, 1] }}
-          >
-            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.35em] text-white/70">{tr("hero", slide.kickerKey)}</p>
-            <h1 className="kinetic-title text-[clamp(2.5rem,6vw,4.5rem)] font-black leading-[0.95]">
-              <RevealText text={titles.t1} delay={0.05} />
-              <br />
-              <RevealText text={titles.t2} delay={0.2} />
-            </h1>
-            <p className="mt-6 max-w-md text-sm leading-relaxed text-white/85">{titles.sub}</p>
-          </motion.div>
-        </AnimatePresence>
+        <div className="relative min-h-[240px]">
+          <AnimatePresence initial={false} custom={direction}>
+            <motion.div
+              key={slide.id}
+              custom={direction}
+              className="absolute inset-0 flex flex-col justify-center"
+              initial={{ opacity: 0, x: direction * 28 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: direction * -28 }}
+              transition={{ duration: reduceMotion ? 0.15 : 0.85, ease: [0.4, 0, 0.2, 1] }}
+            >
+              <p className="mb-3 text-xs font-semibold uppercase tracking-[0.35em] text-white/70">{tr("hero", slide.kickerKey)}</p>
+              <h1 className="kinetic-title text-[clamp(2.5rem,6vw,4.5rem)] font-black leading-[0.95]">
+                <RevealText text={titles.t1} delay={0.05} />
+                <br />
+                <RevealText text={titles.t2} delay={0.2} />
+              </h1>
+              <p className="mt-6 max-w-md text-sm leading-relaxed text-white/85">{titles.sub}</p>
+            </motion.div>
+          </AnimatePresence>
+        </div>
 
-        <div className="mt-10 flex items-center gap-4">
+        <div className="relative z-10 mt-6 flex items-center gap-4">
           <button type="button" aria-label={tr("hero", "prev")} onClick={() => go(slideIndex - 1)} className="hero-nav-btn">
             <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M15 18l-6-6 6-6" />
             </svg>
           </button>
-          <Link to={slide.link} className="hero-cta">
+          <Link to={slide.link} className="hero-cta hero-cta-nudge">
             {tr("hero", "details")}
           </Link>
           <button type="button" aria-label={tr("hero", "next")} onClick={() => go(slideIndex + 1)} className="hero-nav-btn">

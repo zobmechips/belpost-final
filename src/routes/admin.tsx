@@ -169,8 +169,7 @@ function AdminPage() {
           <Settings className="mx-auto mb-4 h-10 w-10 text-brand" />
           <h1 className="admin-title text-2xl">Кабинет администратора</h1>
           <p className="mt-3 text-sm text-slate-600">
-            Войдите через кнопку «Вход» на главной странице с учётной записью администратора
-            (admin@belpost.by или логин admin).
+            Войдите через кнопку «Вход» на главной странице.
           </p>
           <Link to="/" className="btn-primary mt-6 inline-flex">На главную</Link>
         </div>

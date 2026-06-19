@@ -1,9 +1,23 @@
 import cors from "cors";
 import express from "express";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import {
+  clearRefreshCookie,
+  createAccessToken,
+  createRefreshToken,
+  generateResetToken,
+  hashPassword,
+  parseCookies,
+  setRefreshCookie,
+  verifyJwt,
+  verifyPassword,
+} from "./authCrypto.js";
+import { createRateLimiter } from "./middleware/rateLimit.js";
+
+const POLLINATIONS_CHAT_URL = "https://text.pollinations.ai/openai";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -19,15 +33,33 @@ const files = {
   orders: path.join(dataDir, "orders.json"),
   users: path.join(dataDir, "users.json"),
   reviews: path.join(dataDir, "reviews.json"),
+  transactions: path.join(dataDir, "transactions.json"),
+  npes: path.join(dataDir, "npes.json"),
+  refreshTokens: path.join(dataDir, "refresh_tokens.json"),
+  offices: path.join(dataDir, "offices.json"),
+  chatSessions: path.join(dataDir, "chat_sessions.json"),
+  queueTickets: path.join(dataDir, "queue_tickets.json"),
 };
+
+const rateLimitPublic = createRateLimiter({
+  windowMs: 60_000,
+  max: 60,
+  message: "Превышен лимит запросов. Безопасность системы ограничила доступ на 1 минуту.",
+});
 
 const app = express();
 const PORT = Number(process.env.API_PORT ?? 4000);
-const ADMIN_LOGIN = process.env.ADMIN_LOGIN ?? "admin";
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "admin12345";
-const ADMIN_EMAIL = "admin@belpost.by";
+const ADMIN_LOGIN = process.env.ADMIN_LOGIN ?? "staryi_";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD ?? "viwaldi";
 
-app.use(cors());
+const secureCookie = process.env.NODE_ENV === "production";
+
+app.use(
+  cors({
+    origin: process.env.CORS_ORIGIN ?? true,
+    credentials: true,
+  }),
+);
 app.use(express.json());
 
 async function readJson(filePath, fallback = null) {
@@ -66,9 +98,8 @@ function isValidTrackingId(id) {
   return /^(\d{13}|[A-Z]{2}\d{9}[A-Z]{2})$/.test(id);
 }
 
-function isAdminLogin(email, password) {
-  const login = String(email ?? "").trim().toLowerCase();
-  return (login === ADMIN_LOGIN || login === ADMIN_EMAIL) && password === ADMIN_PASSWORD;
+function isAdminLogin(login, password) {
+  return String(login ?? "").trim() === ADMIN_LOGIN && password === ADMIN_PASSWORD;
 }
 
 function publicUser(user) {
@@ -80,7 +111,19 @@ function publicUser(user) {
     wallet: Number(user.wallet) || 0,
     address: user.address ?? "",
     role: user.role ?? "user",
+    clientId: user.clientId ?? "",
+    identificationCode: user.identificationCode ?? "",
+    consents: user.consents ?? { processing: true, marketing: false, analytics: false },
   };
+}
+
+function ensureUserMeta(user) {
+  if (!user.clientId) user.clientId = `BP-${randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase()}`;
+  if (!user.identificationCode) {
+    user.identificationCode = `BY${createHash("sha256").update(String(user.email).toLowerCase()).digest("hex").slice(0, 12).toUpperCase()}`;
+  }
+  if (!user.consents) user.consents = { processing: true, marketing: false, analytics: false };
+  return user;
 }
 
 async function loadUsers() {
@@ -91,122 +134,290 @@ async function saveUsers(users) {
   await writeJson(files.users, users);
 }
 
-function normalizeChat(text) {
-  return String(text ?? "").toLowerCase().replace(/ё/g, "е").trim();
+async function loadRefreshTokens() {
+  return readJson(files.refreshTokens, []);
 }
 
-function findTariff(tariffs, patterns) {
-  return tariffs.find((t) => patterns.some((p) => p.test(String(t.title ?? "").toLowerCase()) || p.test(String(t.id ?? "").toLowerCase())));
+async function saveRefreshTokens(rows) {
+  await writeJson(files.refreshTokens, rows);
 }
 
-async function generateChatReply(rawText) {
-  const text = normalizeChat(rawText);
-  if (!text) {
-    return "Напишите, пожалуйста, ваш вопрос — я с радостью помогу с тарифами, отслеживанием, подпиской или филателией.";
+async function storeRefreshToken(email, token) {
+  const payload = verifyJwt(token);
+  if (!payload?.jti) return;
+  const rows = await loadRefreshTokens();
+  rows.push({
+    jti: payload.jti,
+    email: String(email).toLowerCase(),
+    token,
+    expiresAt: new Date(payload.exp * 1000).toISOString(),
+    createdAt: new Date().toISOString(),
+  });
+  await saveRefreshTokens(rows);
+}
+
+async function revokeRefreshToken(jti) {
+  const rows = await loadRefreshTokens();
+  await saveRefreshTokens(rows.filter((r) => r.jti !== jti));
+}
+
+async function findRefreshToken(jti) {
+  const rows = await loadRefreshTokens();
+  return rows.find((r) => r.jti === jti) ?? null;
+}
+
+async function purgeExpiredRefreshTokens() {
+  const now = Date.now();
+  const rows = await loadRefreshTokens();
+  const fresh = rows.filter((r) => new Date(r.expiresAt).getTime() > now);
+  if (fresh.length !== rows.length) await saveRefreshTokens(fresh);
+}
+
+function getAccessEmail(req) {
+  const auth = req.headers.authorization ?? "";
+  if (!auth.startsWith("Bearer ")) return null;
+  const payload = verifyJwt(auth.slice(7));
+  if (!payload || payload.type !== "access") return null;
+  return String(payload.sub ?? "").toLowerCase();
+}
+
+async function authenticateUserPassword(login, password) {
+  const users = await loadUsers();
+  const idx = users.findIndex((u) => u.email.toLowerCase() === login.toLowerCase());
+  if (idx === -1) return null;
+  const user = users[idx];
+  if (!verifyPassword(password, user.password)) return null;
+  if (!String(user.password).startsWith("pbkdf2$")) {
+    users[idx].password = hashPassword(password);
+  }
+  ensureUserMeta(users[idx]);
+  await saveUsers(users);
+  return users[idx];
+}
+
+function issueSession(res, user) {
+  const accessToken = createAccessToken(user);
+  const refreshToken = createRefreshToken(user);
+  void storeRefreshToken(user.email, refreshToken);
+  setRefreshCookie(res, refreshToken, { secure: secureCookie });
+  return { ...publicUser(user), accessToken };
+}
+
+function buildAnastasiaSystemPrompt(tariffs, news) {
+  const tariffLines = (tariffs ?? [])
+    .filter((t) => t.price > 0)
+    .slice(0, 12)
+    .map((t) => `${t.title}: ${t.price} BYN`)
+    .join("; ");
+  const newsLines = (news ?? [])
+    .slice(0, 3)
+    .map((n) => n.title)
+    .join("; ");
+
+  return `Тебя зовут Анастасия. Ты — официальный, умный и вежливый консультант РУП «Белпочта». Общайся как живой человек на любые темы: поддерживай small talk («как дела», «привет»), отвечай естественно и по существу. Не используй шаблонные заготовки и не своди каждый ответ к тарифам — упоминай услуги Белпочты только когда пользователь спрашивает о почте, доставке, подписке или тарифах.
+
+Справочные тарифы (если спросят): ${tariffLines || "уточняйте на портале"}.
+Новости: ${newsLines || "см. раздел «Новости»"}.
+Услуги: подписка, филателия, отслеживание, НПЭС, ЭЛС, контакт-центр 154.
+Отвечай по-русски.`;
+}
+
+function historyToOpenAiMessages(history) {
+  return (history ?? [])
+    .slice(-10)
+    .filter((m) => m?.text && (m.from === "user" || m.from === "bot"))
+    .map((m) => ({
+      role: m.from === "user" ? "user" : "assistant",
+      content: String(m.text).trim(),
+    }));
+}
+
+async function callPollinationsChat(messages) {
+  const response = await fetch(POLLINATIONS_CHAT_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model: "openai", messages }),
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    console.error("[belpost/chat] Pollinations HTTP", response.status, JSON.stringify(data).slice(0, 800));
+    throw new Error(data?.error?.message ?? data?.message ?? `Pollinations HTTP ${response.status}`);
   }
 
-  const [tariffs, news] = await Promise.all([
-    cachedRead("tariffs", files.tariffs, []),
-    cachedRead("news", files.news, []),
-  ]);
-
-  if (/^(привет|здравств|добрый|доброе|hi|hello|салют|хай)\b/.test(text) || /\bкак дела\b/.test(text)) {
-    if (/\bкак дела\b/.test(text)) {
-      return "У меня всё отлично, спасибо! Готова помочь вам с услугами Белпочты: тарифы, трекинг, подписка, филателия. Что вас интересует?";
-    }
-    return "Здравствуйте! Я Анастасия, виртуальный консультант Белпочты. Рада помочь с тарифами, отслеживанием посылок, подпиской на издания и филателией. Задайте вопрос — отвечу по делу.";
+  const reply = data?.choices?.[0]?.message?.content;
+  if (!reply || !String(reply).trim()) {
+    console.error("[belpost/chat] Pollinations empty choices:", JSON.stringify(data).slice(0, 800));
+    throw new Error("Pollinations вернул пустой ответ");
   }
 
-  if (/спасибо|благодар/.test(text)) {
-    return "Всегда пожалуйста! Если появятся ещё вопросы по услугам Белпочты — я на связи.";
-  }
+  return String(reply).trim();
+}
 
-  if (/трек|отслеж|посылк|отправлен|track|номер|где моя|где посылка/.test(text)) {
-    return "Я могу помочь! Введите ваш 13-значный номер в поле на главном баннере, и наша система покажет детальный путь посылки. Также поддерживается международный формат: две буквы, 9 цифр и две буквы (например, RB123456789BY).";
-  }
+async function loadTransactions() {
+  return readJson(files.transactions, []);
+}
 
-  if (/марк|филател|коллекц|конверт/.test(text)) {
-    return "Раздел «Филателия» доступен в верхнем меню или по адресу /philately — там каталог марок, конвертов и коллекционных наборов с актуальными ценами. Могу подсказать по конкретной позиции, если уточните название.";
-  }
+async function saveTransactions(rows) {
+  await writeJson(files.transactions, rows);
+}
 
-  if (/подписк|газет|журнал|издани/.test(text)) {
-    const sub = findTariff(tariffs, [/подписк/]);
-    const price = sub ? ` Базовый тариф подписки — ${sub.price} BYN.` : "";
-    return `Оформить подписку можно в разделе «Подписка» (/subscription): выберите издание, период и адрес доставки.${price} Нужна помощь с выбором — напишите название газеты или журнала.`;
-  }
-
-  if (/новост|акци|событи/.test(text)) {
-    const latest = news[0];
-    if (latest?.title) {
-      return `Свежая новость: «${latest.title}» — ${latest.excerpt ?? latest.body?.slice(0, 120) ?? ""}. Полный список публикаций — на главной странице в блоке «Новости».`;
-    }
-    return "Актуальные новости и объявления Белпочты размещены на главной странице в разделе «Новости».";
-  }
-
-  if (/админ|кабинет|личн|регистрац|войти|логин|пароль/.test(text)) {
-    return "Для входа в личный кабинет нажмите «Войти» в шапке сайта. Там доступны история заказов, отслеживание посылок и настройки профиля. Регистрация занимает меньше минуты.";
-  }
-
-  if (/тариф|цен|стоим|сколько|прайс|price|оплат|byn|руб|деньг|ems|экспресс|доставк|пересыл|письм/.test(text)) {
-    const letter = findTariff(tariffs, [/письм|бланк|post-shipment|отправлен/]);
-    const ems = findTariff(tariffs, [/международ|international|ems|экспресс/]);
-    const courier = findTariff(tariffs, [/курьер|courier/]);
-    const parts = [];
-
-    if (letter) parts.push(`${letter.title} — ${letter.price} BYN`);
-    if (ems) parts.push(`международная / экспресс-доставка (${ems.title}) — ${ems.price} BYN`);
-    if (courier) parts.push(`${courier.title} — ${courier.price} BYN`);
-
-    const matched = tariffs.filter((t) => text.split(/\s+/).some((w) => w.length > 3 && String(t.title).toLowerCase().includes(w)));
-    if (matched.length > 0 && matched.length <= 4) {
-      const list = matched.map((t) => `• ${t.title} — ${t.price} BYN`).join("\n");
-      return `По вашему запросу нашла актуальные тарифы:\n${list}\n\nТочный расчёт — в калькуляторе на главной в разделе «Онлайн-услуги».`;
-    }
-
-    if (parts.length > 0) {
-      return `Актуальные ориентиры по стоимости:\n• ${parts.join("\n• ")}\n\nПолный прайс и интерактивный калькулятор — на главной странице в блоке «Онлайн-услуги».`;
-    }
-
-    const top = tariffs.filter((t) => t.price > 0).slice(0, 6);
-    const list = top.map((t) => `• ${t.title} — ${t.price} BYN`).join("\n");
-    return `Вот основные тарифы на сегодня:\n${list}\n\nУточните услугу — назову точную стоимость или подскажу калькулятор.`;
-  }
-
-  if (/контакт|телефон|звон|154|поддерж|оператор|связ/.test(text)) {
-    return "Контакт-центр Белпочты: MTS +375 (33) 300-01-54, A1 +375 (44) 590-01-54. Также доступны Telegram и Viber через кнопку связи в правом нижнем углу. Чем ещё помочь?";
-  }
-
-  if (/отделен|офис|адрес|где найти/.test(text)) {
-    const offices = findTariff(tariffs, [/отделен|offices/]);
-    return `Сеть отделений Белпочты охватывает всю страну.${offices ? ` Справочник — в разделе «${offices.title}».` : ""} Уточните город — подскажу, как найти ближайшее отделение на belpost.by.`;
-  }
-
-  if (/корзин|заказ|оформ/.test(text)) {
-    return "Добавьте услуги в корзину через кнопку в шапке сайта, затем оформите заказ в мастере оформления: укажите отправителя, получателя и способ доставки. Нужна помощь с конкретным шагом?";
-  }
-
-  return "Спасибо за вопрос! Я могу подробно рассказать о тарифах и стоимости, помочь с отслеживанием посылки, подсказать про подписку или филателию. Сформулируйте, пожалуйста, чуть конкретнее — и я дам точный ответ.";
+async function deductElsBalance(email, amount, meta = {}) {
+  const users = await loadUsers();
+  const idx = users.findIndex((u) => u.email.toLowerCase() === String(email).toLowerCase());
+  if (idx === -1) throw new Error("Пользователь не найден");
+  const balance = Number(users[idx].wallet) || 0;
+  if (balance < amount) throw new Error("Недостаточно средств на лицевом счёте ЭЛС");
+  users[idx].wallet = Math.round((balance - amount) * 100) / 100;
+  await saveUsers(users);
+  const tx = {
+    id: randomUUID(),
+    createdAt: new Date().toISOString(),
+    email: users[idx].email,
+    type: "debit",
+    amount,
+    balanceAfter: users[idx].wallet,
+    ...meta,
+  };
+  const log = await loadTransactions();
+  log.push(tx);
+  await saveTransactions(log);
+  return { user: publicUser(users[idx]), transaction: tx };
 }
 
 app.get("/api/health", (_, res) => res.json({ ok: true }));
 
 app.post("/api/auth/login", async (req, res) => {
-  const { email, password } = req.body ?? {};
-  if (!email?.trim() || !password) {
-    res.status(400).json({ message: "Введите email и пароль" });
+  const login = String(req.body?.login ?? req.body?.email ?? "").trim();
+  const password = req.body?.password ?? "";
+  if (!login || !password) {
+    res.status(400).json({ message: "Введите логин и пароль" });
     return;
   }
-  if (isAdminLogin(email, password)) {
-    res.json(publicUser({ email: ADMIN_EMAIL, name: "Администратор", trackingIds: [], role: "admin" }));
+  if (isAdminLogin(login, password)) {
+    res.json(publicUser({ email: ADMIN_LOGIN, name: "Администратор", trackingIds: [], role: "admin" }));
+    return;
+  }
+  const user = await authenticateUserPassword(login, password);
+  if (!user) {
+    res.status(401).json({ message: "Неверный логин или пароль" });
+    return;
+  }
+  res.json(issueSession(res, user));
+});
+
+app.post("/api/auth/refresh", async (req, res) => {
+  await purgeExpiredRefreshTokens();
+  const cookies = parseCookies(req);
+  const refreshToken = cookies.belpost_refresh;
+  if (!refreshToken) {
+    res.status(401).json({ message: "Сессия истекла" });
+    return;
+  }
+  const payload = verifyJwt(refreshToken);
+  if (!payload || payload.type !== "refresh" || !payload.jti) {
+    clearRefreshCookie(res, { secure: secureCookie });
+    res.status(401).json({ message: "Недействительный токен" });
+    return;
+  }
+  const stored = await findRefreshToken(payload.jti);
+  if (!stored || stored.token !== refreshToken) {
+    clearRefreshCookie(res, { secure: secureCookie });
+    res.status(401).json({ message: "Сессия отозвана" });
     return;
   }
   const users = await loadUsers();
-  const user = users.find((u) => u.email.toLowerCase() === String(email).trim().toLowerCase() && u.password === password);
+  const user = users.find((u) => u.email.toLowerCase() === String(payload.sub).toLowerCase());
   if (!user) {
-    res.status(401).json({ message: "Неверный email или пароль" });
+    await revokeRefreshToken(payload.jti);
+    clearRefreshCookie(res, { secure: secureCookie });
+    res.status(401).json({ message: "Пользователь не найден" });
+    return;
+  }
+  await revokeRefreshToken(payload.jti);
+  const accessToken = createAccessToken(user);
+  const newRefresh = createRefreshToken(user);
+  await storeRefreshToken(user.email, newRefresh);
+  setRefreshCookie(res, newRefresh, { secure: secureCookie });
+  res.json({ ...publicUser(user), accessToken });
+});
+
+app.post("/api/auth/logout", async (req, res) => {
+  const cookies = parseCookies(req);
+  const refreshToken = cookies.belpost_refresh;
+  if (refreshToken) {
+    const payload = verifyJwt(refreshToken);
+    if (payload?.jti) await revokeRefreshToken(payload.jti);
+  }
+  clearRefreshCookie(res, { secure: secureCookie });
+  res.json({ ok: true });
+});
+
+app.get("/api/auth/me", async (req, res) => {
+  const email = getAccessEmail(req) ?? String(req.query.login ?? req.query.email ?? "").trim().toLowerCase();
+  if (!email) {
+    res.status(401).json({ message: "Требуется авторизация" });
+    return;
+  }
+  if (email === ADMIN_LOGIN) {
+    res.status(401).json({ message: "Требуется повторный вход" });
+    return;
+  }
+  const users = await loadUsers();
+  const user = users.find((u) => u.email.toLowerCase() === email);
+  if (!user) {
+    res.status(404).json({ message: "Пользователь не найден" });
     return;
   }
   res.json(publicUser(user));
+});
+
+app.post("/api/auth/forgot-password", async (req, res) => {
+  const email = String(req.body?.email ?? "").trim().toLowerCase();
+  if (!email) {
+    res.status(400).json({ message: "Укажите email" });
+    return;
+  }
+  const users = await loadUsers();
+  const idx = users.findIndex((u) => u.email.toLowerCase() === email);
+  if (idx === -1) {
+    res.json({ message: "Если аккаунт существует, на email отправлена ссылка для сброса" });
+    return;
+  }
+  const token = generateResetToken();
+  users[idx].resetPasswordToken = token;
+  users[idx].resetPasswordExpires = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+  await saveUsers(users);
+  const base = process.env.APP_URL ?? `${req.protocol}://${req.get("host")}`;
+  console.log(`[belpost] Сброс пароля для ${email}: ${base}/reset-password?token=${token}`);
+  res.json({ message: "Если аккаунт существует, на email отправлена ссылка для сброса" });
+});
+
+app.post("/api/auth/reset-password", async (req, res) => {
+  const token = String(req.body?.token ?? "").trim();
+  const password = req.body?.password ?? "";
+  if (!token || !password) {
+    res.status(400).json({ message: "Укажите токен и новый пароль" });
+    return;
+  }
+  if (password.length < 6) {
+    res.status(400).json({ message: "Пароль должен быть не менее 6 символов" });
+    return;
+  }
+  const users = await loadUsers();
+  const idx = users.findIndex(
+    (u) => u.resetPasswordToken === token && u.resetPasswordExpires && new Date(u.resetPasswordExpires) > new Date(),
+  );
+  if (idx === -1) {
+    res.status(400).json({ message: "Ссылка недействительна или истекла" });
+    return;
+  }
+  users[idx].password = hashPassword(password);
+  delete users[idx].resetPasswordToken;
+  delete users[idx].resetPasswordExpires;
+  await saveUsers(users);
+  res.json({ message: "Пароль успешно изменён" });
 });
 
 app.post("/api/auth/register", async (req, res) => {
@@ -234,13 +445,22 @@ app.post("/api/auth/register", async (req, res) => {
     res.status(409).json({ message: "Пользователь с таким email уже существует" });
     return;
   }
-  const user = { email: trimmedEmail, password, name: trimmedName, trackingIds: [], role: "user", wallet: 0, address: "", phone: "" };
+  const user = ensureUserMeta({
+    email: trimmedEmail,
+    password: hashPassword(password),
+    name: trimmedName,
+    trackingIds: [],
+    role: "user",
+    wallet: 0,
+    address: "",
+    phone: "",
+  });
   users.push(user);
   await saveUsers(users);
-  res.json(publicUser(user));
+  res.json(issueSession(res, user));
 });
 
-app.get("/api/tariffs", async (_, res) => {
+app.get("/api/tariffs", rateLimitPublic, async (_, res) => {
   try {
     res.json(await cachedRead("tariffs", files.tariffs, []));
   } catch (error) {
@@ -291,47 +511,81 @@ app.get("/api/reviews", async (_, res) => {
   res.json(await cachedRead("reviews", files.reviews, []));
 });
 
-app.get("/api/notifications", async (_, res) => {
-  const [orders, news, tariffs] = await Promise.all([
-    cachedRead("orders", files.orders, []),
+app.get("/api/notifications", async (req, res) => {
+  const email = String(req.query.email ?? "").trim().toLowerCase();
+  if (!email) {
+    res.status(401).json({ message: "Требуется авторизация" });
+    return;
+  }
+
+  const [news, orders] = await Promise.all([
     cachedRead("news", files.news, []),
-    cachedRead("tariffs", files.tariffs, []),
+    readJson(files.orders, []),
   ]);
 
   const items = [];
 
-  orders.slice(-4).reverse().forEach((order) => {
-    items.push({
-      id: `order-${order.id}`,
-      title: "Статус заказа",
-      message: `Заказ ${order.id.slice(0, 8)}… — ${order.status === "shipped" ? "отправлен" : order.status === "done" ? "выполнен" : "в обработке"}. Сумма ${Number(order.total || 0).toFixed(2)} BYN`,
-      read: order.status === "done",
-      createdAt: order.createdAt,
-    });
-  });
-
-  news.slice(0, 3).forEach((n) => {
+  news.slice(0, 8).forEach((n) => {
+    if (!n?.title?.trim()) return;
     items.push({
       id: `news-${n.id}`,
-      title: "Акция и новости",
+      type: "news",
+      title: "Новости и акции",
       message: n.title,
+      link: `/?news=${encodeURIComponent(n.id)}#news`,
       read: false,
       createdAt: n.date ?? new Date().toISOString(),
     });
   });
 
-  const sampleTariff = tariffs.find((t) => t.price > 0);
-  if (sampleTariff) {
-    items.push({
-      id: "tariff-update",
-      title: "Изменение тарифов",
-      message: `Актуальная стоимость «${sampleTariff.title}» — ${sampleTariff.price} BYN`,
-      read: true,
-      createdAt: new Date().toISOString(),
+  orders
+    .filter((o) => o.userEmail?.toLowerCase() === email)
+    .slice(-5)
+    .reverse()
+    .forEach((order) => {
+      items.push({
+        id: `order-${order.id}`,
+        type: "order",
+        title: "Ваш заказ",
+        message: `Заказ ${order.id.slice(0, 8)}… — ${order.status === "shipped" ? "отправлен" : order.status === "done" ? "выполнен" : "в обработке"}`,
+        link: "/",
+        read: order.status === "done",
+        createdAt: order.createdAt,
+      });
     });
-  }
 
-  res.json(items.slice(0, 8));
+  items.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  res.json(items.slice(0, 10));
+});
+
+app.get("/api/offices", async (_, res) => {
+  res.json(await cachedRead("offices", files.offices, []));
+});
+
+app.get("/api/chat/history", async (req, res) => {
+  const email = getAccessEmail(req);
+  if (!email) {
+    res.status(401).json({ message: "Требуется авторизация" });
+    return;
+  }
+  const sessions = await readJson(files.chatSessions, {});
+  res.json({ messages: sessions[email]?.messages ?? [] });
+});
+
+app.put("/api/chat/history", async (req, res) => {
+  const email = getAccessEmail(req);
+  if (!email) {
+    res.status(401).json({ message: "Требуется авторизация" });
+    return;
+  }
+  const messages = Array.isArray(req.body?.messages) ? req.body.messages : [];
+  const sessions = await readJson(files.chatSessions, {});
+  sessions[email] = {
+    messages: messages.slice(-100).map((m) => ({ from: m.from, text: String(m.text ?? "") })),
+    updatedAt: new Date().toISOString(),
+  };
+  await writeJson(files.chatSessions, sessions);
+  res.json({ ok: true });
 });
 
 app.post("/api/chat", async (req, res) => {
@@ -340,33 +594,150 @@ app.post("/api/chat", async (req, res) => {
     res.status(400).json({ message: "Введите сообщение" });
     return;
   }
+
   try {
-    const reply = await generateChatReply(message);
+    const email = getAccessEmail(req);
+    const [tariffs, news, sessions] = await Promise.all([
+      cachedRead("tariffs", files.tariffs, []),
+      cachedRead("news", files.news, []),
+      readJson(files.chatSessions, {}),
+    ]);
+
+    const history = email ? (sessions[email]?.messages ?? []) : [];
+    const openAiMessages = [
+      { role: "system", content: buildAnastasiaSystemPrompt(tariffs, news) },
+      ...historyToOpenAiMessages(history),
+      { role: "user", content: String(message).trim() },
+    ];
+
+    const reply = await callPollinationsChat(openAiMessages);
+
+    if (email) {
+      const next = [
+        ...history,
+        { from: "user", text: String(message).trim() },
+        { from: "bot", text: reply },
+      ].slice(-100);
+      sessions[email] = { messages: next, updatedAt: new Date().toISOString() };
+      await writeJson(files.chatSessions, sessions);
+    }
+
     res.json({ reply });
-  } catch (error) {
-    res.status(500).json({ message: "Не удалось обработать сообщение", error: String(error) });
+  } catch (err) {
+    console.error("[belpost/chat] Ошибка Pollinations:", err);
+    res.status(502).json({
+      message: err instanceof Error ? err.message : "Не удалось получить ответ от ассистента",
+    });
   }
 });
 
+app.post("/api/queue/ticket", async (req, res) => {
+  const email = getAccessEmail(req) ?? String(req.body?.email ?? "").trim().toLowerCase();
+  const { officeId, date, time, name } = req.body ?? {};
+  if (!email || !officeId || !date || !time) {
+    res.status(400).json({ message: "Заполните все поля бронирования" });
+    return;
+  }
+  const offices = await cachedRead("offices", files.offices, []);
+  const office = offices.find((o) => o.id === officeId);
+  if (!office) {
+    res.status(404).json({ message: "Отделение не найдено" });
+    return;
+  }
+  const tickets = await readJson(files.queueTickets, []);
+  const ticket = {
+    id: randomUUID(),
+    email,
+    name: String(name ?? "").trim(),
+    officeId,
+    officeCity: office.city,
+    officeAddress: office.address,
+    date: String(date),
+    time: String(time),
+    status: "booked",
+    createdAt: new Date().toISOString(),
+  };
+  tickets.push(ticket);
+  await writeJson(files.queueTickets, tickets);
+  res.json({ message: "Талон забронирован", ticket });
+});
+
 app.patch("/api/user/profile", async (req, res) => {
-  const { email, address, phone } = req.body ?? {};
-  if (!email) {
+  const authEmail = getAccessEmail(req);
+  const { email, address, phone, name, consents } = req.body ?? {};
+  const targetEmail = (authEmail ?? String(email ?? "")).toLowerCase();
+  if (!targetEmail) {
     res.status(400).json({ message: "Email обязателен" });
     return;
   }
+  if (authEmail && authEmail !== targetEmail) {
+    res.status(403).json({ message: "Недостаточно прав" });
+    return;
+  }
   const users = await loadUsers();
-  const idx = users.findIndex((u) => u.email.toLowerCase() === String(email).toLowerCase());
+  const idx = users.findIndex((u) => u.email.toLowerCase() === targetEmail);
   if (idx === -1) {
     res.status(404).json({ message: "Пользователь не найден" });
     return;
   }
+  if (name !== undefined) users[idx].name = String(name).trim();
   if (address !== undefined) users[idx].address = String(address);
   if (phone !== undefined) users[idx].phone = String(phone);
+  if (consents && typeof consents === "object") {
+    users[idx].consents = {
+      processing: Boolean(consents.processing),
+      marketing: Boolean(consents.marketing),
+      analytics: Boolean(consents.analytics),
+    };
+  }
+  ensureUserMeta(users[idx]);
   await saveUsers(users);
   res.json(publicUser(users[idx]));
 });
 
-app.get("/api/track/:id", async (req, res) => {
+app.post("/api/user/change-password", async (req, res) => {
+  const email = getAccessEmail(req);
+  const { currentPassword, newPassword } = req.body ?? {};
+  if (!email) {
+    res.status(401).json({ message: "Требуется авторизация" });
+    return;
+  }
+  if (!currentPassword || !newPassword || newPassword.length < 6) {
+    res.status(400).json({ message: "Укажите текущий и новый пароль (мин. 6 символов)" });
+    return;
+  }
+  const users = await loadUsers();
+  const idx = users.findIndex((u) => u.email.toLowerCase() === email);
+  if (idx === -1 || !verifyPassword(currentPassword, users[idx].password)) {
+    res.status(401).json({ message: "Неверный текущий пароль" });
+    return;
+  }
+  users[idx].password = hashPassword(newPassword);
+  await saveUsers(users);
+  res.json({ message: "Пароль изменён" });
+});
+
+app.delete("/api/user/account", async (req, res) => {
+  const email = getAccessEmail(req);
+  if (!email) {
+    res.status(401).json({ message: "Требуется авторизация" });
+    return;
+  }
+  const users = await loadUsers();
+  const next = users.filter((u) => u.email.toLowerCase() !== email);
+  if (next.length === users.length) {
+    res.status(404).json({ message: "Пользователь не найден" });
+    return;
+  }
+  await saveUsers(next);
+  const sessions = await readJson(files.chatSessions, {});
+  delete sessions[email];
+  await writeJson(files.chatSessions, sessions);
+  clearRefreshCookie(res, { secure: secureCookie });
+  res.json({ message: "Аккаунт удалён" });
+});
+
+app.get("/api/track/:id", rateLimitPublic, async (req, res) => {
   const id = String(req.params.id ?? "").toUpperCase();
   if (!isValidTrackingId(id)) {
     res.status(400).json({ message: "Некорректный формат трек-номера" });
@@ -437,27 +808,147 @@ app.get("/api/orders", async (req, res) => {
 });
 
 app.post("/api/orders", async (req, res) => {
-  const { userEmail, sender, recipient, delivery, items, total } = req.body ?? {};
+  const { userEmail, sender, recipient, delivery, items, total, paymentMethod } = req.body ?? {};
+  if (!userEmail?.trim()) {
+    res.status(401).json({ message: "Для оформления заказа войдите в личный кабинет" });
+    return;
+  }
   if (!sender?.name || !sender?.phone || !recipient?.name || !delivery?.method || !Array.isArray(items) || items.length === 0) {
     res.status(400).json({ message: "Неполные данные заказа" });
     return;
   }
+  const orderTotal = Number(total) || 0;
+  let walletAfter = null;
+
+  if (paymentMethod === "els") {
+    try {
+      const result = await deductElsBalance(userEmail, orderTotal, {
+        description: "Оплата заказа",
+        orderPreview: items.map((i) => i.title).join(", "),
+      });
+      walletAfter = result.user.wallet;
+    } catch (e) {
+      res.status(400).json({ message: e instanceof Error ? e.message : "Ошибка списания ЭЛС" });
+      return;
+    }
+  }
+
   const orders = await readJson(files.orders, []);
   const order = {
     id: randomUUID(),
     createdAt: new Date().toISOString(),
-    status: "new",
-    userEmail: userEmail ?? sender.email ?? "",
+    status: paymentMethod === "els" ? "paid" : "new",
+    userEmail: userEmail.trim(),
     sender,
     recipient,
     delivery,
     items,
-    total: Number(total) || 0,
+    total: orderTotal,
+    paymentMethod: paymentMethod ?? "standard",
   };
   orders.push(order);
   await writeJson(files.orders, orders);
   bustCache("orders", "notifications");
-  res.json({ message: "Заказ оформлен", order });
+  res.json({ message: "Заказ оформлен", order, wallet: walletAfter });
+});
+
+app.get("/api/user/transactions", async (req, res) => {
+  const email = String(req.query.email ?? "").trim().toLowerCase();
+  if (!email) {
+    res.status(400).json({ message: "Email обязателен" });
+    return;
+  }
+  const log = await loadTransactions();
+  res.json(log.filter((t) => t.email?.toLowerCase() === email).slice(-50).reverse());
+});
+
+app.post("/api/user/els/topup", async (req, res) => {
+  const { email, amount } = req.body ?? {};
+  const trimmed = String(email ?? "").trim().toLowerCase();
+  const sum = Number(amount);
+  if (!trimmed || !sum || sum <= 0) {
+    res.status(400).json({ message: "Некорректные данные пополнения" });
+    return;
+  }
+  const users = await loadUsers();
+  const idx = users.findIndex((u) => u.email.toLowerCase() === trimmed);
+  if (idx === -1) {
+    res.status(404).json({ message: "Пользователь не найден" });
+    return;
+  }
+  users[idx].wallet = Math.round(((Number(users[idx].wallet) || 0) + sum) * 100) / 100;
+  await saveUsers(users);
+  const tx = {
+    id: randomUUID(),
+    createdAt: new Date().toISOString(),
+    email: trimmed,
+    type: "credit",
+    amount: sum,
+    balanceAfter: users[idx].wallet,
+    description: "Пополнение лицевого счёта ЭЛС",
+  };
+  const log = await loadTransactions();
+  log.push(tx);
+  await saveTransactions(log);
+  res.json({ wallet: users[idx].wallet, transaction: tx });
+});
+
+app.post("/api/npes/send", async (req, res) => {
+  const { userEmail, recipient, subject, body, attachmentName, recipientInSystem } = req.body ?? {};
+  if (!userEmail?.trim() || !recipient?.trim() || !subject?.trim() || !body?.trim()) {
+    res.status(400).json({ message: "Заполните адресата, тему и текст письма" });
+    return;
+  }
+  const isHybrid = recipientInSystem === false;
+  const npesId = randomUUID();
+  const npes = await readJson(files.npes, []);
+  const entry = {
+    id: npesId,
+    createdAt: new Date().toISOString(),
+    userEmail: userEmail.trim(),
+    recipient: String(recipient).trim(),
+    subject: String(subject).trim(),
+    body: String(body).trim(),
+    attachmentName: attachmentName ? String(attachmentName) : null,
+    mode: isHybrid ? "hybrid" : "digital",
+    status: isHybrid ? "queued_print" : "delivered_digital",
+  };
+  npes.push(entry);
+
+  const orders = await readJson(files.orders, []);
+  const order = {
+    id: randomUUID(),
+    createdAt: new Date().toISOString(),
+    status: isHybrid ? "hybrid" : "digital",
+    type: "npes",
+    userEmail: userEmail.trim(),
+    npesId,
+    recipient: { name: entry.recipient, email: entry.recipient },
+    items: [{ title: `НПЭС: ${entry.subject}`, price: isHybrid ? 2.5 : 1.2 }],
+    total: isHybrid ? 2.5 : 1.2,
+    delivery: { method: isHybrid ? "office_print" : "digital", note: isHybrid ? "Гибридное: печать в отделении" : "Цифровая доставка" },
+  };
+  orders.push(order);
+
+  await Promise.all([writeJson(files.npes, npes), writeJson(files.orders, orders)]);
+  bustCache("orders", "notifications");
+  res.json({
+    message: isHybrid
+      ? "Письмо принято. Отправление помечено как «Гибридное» — будет напечатано в отделении."
+      : "Электронное письмо НПЭС успешно отправлено.",
+    entry,
+    order,
+  });
+});
+
+app.get("/api/npes", async (req, res) => {
+  const email = String(req.query.email ?? "").trim().toLowerCase();
+  if (!email) {
+    res.status(401).json({ message: "Требуется авторизация" });
+    return;
+  }
+  const npes = await readJson(files.npes, []);
+  res.json(npes.filter((n) => n.userEmail?.toLowerCase() === email).slice(-30).reverse());
 });
 
 // ── Admin API ──

@@ -54,7 +54,7 @@ export function ReCaptcha({ onChange }: ReCaptchaProps) {
 
   return (
     <div className="recaptcha-wrap">
-      <div ref={containerRef} />
+      <div ref={containerRef} className="recaptcha-widget" />
       {!ready && <p className="text-xs text-slate-400">Загрузка проверки…</p>}
     </div>
   );

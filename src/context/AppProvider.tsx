@@ -1,8 +1,9 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { api, type AdminCredentials } from "@/lib/api";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { api, writeAccessToken, type AdminCredentials } from "@/lib/api";
 import { t, type Lang } from "@/lib/i18n";
 
 const isBrowser = typeof window !== "undefined";
+const ADMIN_LOGIN = "staryi_";
 
 function readStorage(key: string): string | null {
   if (!isBrowser) return null;
@@ -46,6 +47,13 @@ export type User = {
   wallet?: number;
   address?: string;
   role?: "user" | "admin";
+  clientId?: string;
+  identificationCode?: string;
+  consents?: {
+    processing: boolean;
+    marketing: boolean;
+    analytics: boolean;
+  };
 };
 
 export type ToastItem = {
@@ -54,14 +62,10 @@ export type ToastItem = {
   type?: "success" | "error" | "info";
 };
 
-export type Theme = "light" | "dark";
-
 type AppContextValue = {
   lang: Lang;
   setLang: (lang: Lang) => void;
   tr: (section: keyof import("@/lib/i18n").TranslationTree, key: string) => string;
-  theme: Theme;
-  toggleTheme: () => void;
   a11y: boolean;
   toggleA11y: () => void;
   reduceMotion: boolean;
@@ -69,9 +73,11 @@ type AppContextValue = {
   setUser: (user: User) => void;
   isAdmin: boolean;
   adminCreds: AdminCredentials | null;
-  login: (email: string, password: string) => Promise<User>;
+  login: (login: string, password: string) => Promise<User>;
   register: (name: string, email: string, password: string) => Promise<User>;
   logout: () => void;
+  registerAuthOpener: (fn: () => void) => void;
+  requireAuth: (action?: () => void) => boolean;
   cart: CartItem[];
   cartCount: number;
   addToCart: (item: CartItem) => void;
@@ -99,13 +105,12 @@ function persistUser(user: User | null, password?: string) {
   }
   writeStorage("belpost-user", JSON.stringify(user));
   if (user.role === "admin" && password) {
-    writeStorage("belpost-admin-creds", JSON.stringify({ login: "admin", password }));
+    writeStorage("belpost-admin-creds", JSON.stringify({ login: ADMIN_LOGIN, password }));
   }
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>("ru");
-  const [theme, setTheme] = useState<Theme>("light");
   const [a11y, setA11y] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
   const [user, setUser] = useState<User | null>(null);
@@ -114,6 +119,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [tariffs, setTariffs] = useState<Record<string, { title: string; price: number }>>({});
   const [tariffsLoading, setTariffsLoading] = useState(true);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const authOpenerRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     const storedLang = readStorage("belpost-lang") as Lang | null;
@@ -121,17 +127,54 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setLangState(storedLang);
     }
 
-    const storedTheme = readStorage("belpost-theme") as Theme | null;
-    if (storedTheme === "light" || storedTheme === "dark") {
-      setTheme(storedTheme);
-    }
-
     setA11y(readStorage("belpost-a11y") === "1");
     setReduceMotion(readStorage("belpost-a11y") === "1" || prefersReducedMotion());
 
     try {
       const raw = readStorage("belpost-user");
-      if (raw) setUser(JSON.parse(raw) as User);
+      if (raw) {
+        const stored = JSON.parse(raw) as User;
+        setUser(stored);
+        if (stored.role !== "admin") {
+          const refreshSession = async () => {
+            try {
+              const data = await api.refresh();
+              if (data.accessToken) writeAccessToken(data.accessToken);
+              const refreshed: User = {
+                email: data.email,
+                name: data.name,
+                phone: data.phone ?? "",
+                trackingIds: data.trackingIds ?? [],
+                wallet: data.wallet ?? 0,
+                address: data.address ?? "",
+                role: data.role ?? "user",
+              };
+              setUser(refreshed);
+              writeStorage("belpost-user", JSON.stringify(refreshed));
+            } catch {
+              try {
+                const data = await api.me();
+                const refreshed: User = {
+                  email: data.email,
+                  name: data.name,
+                  phone: data.phone ?? "",
+                  trackingIds: data.trackingIds ?? [],
+                  wallet: data.wallet ?? 0,
+                  address: data.address ?? "",
+                  role: data.role ?? "user",
+                };
+                setUser(refreshed);
+                writeStorage("belpost-user", JSON.stringify(refreshed));
+              } catch {
+                removeStorage("belpost-user");
+                writeAccessToken(null);
+                setUser(null);
+              }
+            }
+          };
+          void refreshSession();
+        }
+      }
       const creds = readStorage("belpost-admin-creds");
       if (creds) setAdminCreds(JSON.parse(creds) as AdminCredentials);
       const cartRaw = readStorage("belpost-cart");
@@ -146,26 +189,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setLangState(l);
     writeStorage("belpost-lang", l);
   };
-
-  const toggleTheme = () => {
-    if (isBrowser) {
-      document.documentElement.classList.add("theme-transition");
-      window.setTimeout(() => document.documentElement.classList.remove("theme-transition"), 400);
-    }
-    setTheme((prev) => {
-      const next = prev === "light" ? "dark" : "light";
-      writeStorage("belpost-theme", next);
-      if (isBrowser) {
-        document.documentElement.classList.toggle("dark", next === "dark");
-      }
-      return next;
-    });
-  };
-
-  useEffect(() => {
-    if (!isBrowser) return;
-    document.documentElement.classList.toggle("dark", theme === "dark");
-  }, [theme]);
 
   const toggleA11y = () => {
     setA11y((prev) => {
@@ -187,6 +210,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setReduceMotion(motion);
     document.documentElement.classList.toggle("a11y-mode", a11y);
     document.documentElement.classList.toggle("reduce-motion", motion);
+    document.documentElement.classList.remove("dark");
   }, [a11y]);
 
   const tr = useCallback((section: keyof import("@/lib/i18n").TranslationTree, key: string) => t(lang, section, key), [lang]);
@@ -200,6 +224,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const dismissToast = (id: string) => setToasts((prev) => prev.filter((x) => x.id !== id));
+
+  const registerAuthOpener = useCallback((fn: () => void) => {
+    authOpenerRef.current = fn;
+  }, []);
+
+  const requireAuth = useCallback(
+    (action?: () => void) => {
+      if (user) {
+        action?.();
+        return true;
+      }
+      pushToast("Войдите или зарегистрируйтесь, чтобы продолжить", "info");
+      authOpenerRef.current?.();
+      return false;
+    },
+    [user, pushToast],
+  );
 
   const loadTariffs = useCallback(async () => {
     try {
@@ -222,7 +263,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void loadTariffs();
     if (!isBrowser) return;
-    const interval = window.setInterval(() => void loadTariffs(), 15000);
+    const interval = window.setInterval(() => void loadTariffs(), 30000);
     return () => window.clearInterval(interval);
   }, [loadTariffs]);
 
@@ -232,6 +273,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [cart]);
 
   const addToCart = (item: CartItem) => {
+    if (!user) {
+      pushToast("Для добавления в корзину войдите или зарегистрируйтесь", "info");
+      authOpenerRef.current?.();
+      return;
+    }
     setCart((prev) => {
       if (prev.some((x) => x.id === item.id)) {
         pushToast(`«${item.title}» ${tr("cart", "alreadyInCart")}`, "info");
@@ -252,7 +298,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const applyUser = (u: User, password?: string) => {
     setUser(u);
     if (u.role === "admin" && password) {
-      const creds = { login: "admin", password };
+      const creds = { login: ADMIN_LOGIN, password };
       setAdminCreds(creds);
       writeStorage("belpost-admin-creds", JSON.stringify(creds));
     }
@@ -260,8 +306,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return u;
   };
 
-  const login = async (email: string, password: string) => {
-    const data = await api.login(email, password);
+  const login = async (loginId: string, password: string) => {
+    const data = await api.login(loginId, password);
+    if (data.accessToken) writeAccessToken(data.accessToken);
     const u: User = {
       email: data.email,
       name: data.name,
@@ -270,17 +317,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
       wallet: data.wallet ?? 0,
       address: data.address ?? "",
       role: data.role ?? "user",
+      clientId: data.clientId,
+      identificationCode: data.identificationCode,
+      consents: data.consents,
     };
     return applyUser(u, u.role === "admin" ? password : undefined);
   };
 
   const register = async (name: string, email: string, password: string) => {
     const data = await api.register(name, email, password);
-    const u: User = { email: data.email, name: data.name, phone: data.phone ?? "", trackingIds: data.trackingIds ?? [], wallet: data.wallet ?? 0, address: data.address ?? "", role: "user" };
+    if (data.accessToken) writeAccessToken(data.accessToken);
+    const u: User = {
+      email: data.email,
+      name: data.name,
+      phone: data.phone ?? "",
+      trackingIds: data.trackingIds ?? [],
+      wallet: data.wallet ?? 0,
+      address: data.address ?? "",
+      role: "user",
+      clientId: data.clientId,
+      identificationCode: data.identificationCode,
+      consents: data.consents,
+    };
     return applyUser(u);
   };
 
   const logout = () => {
+    void api.logout().catch(() => {});
+    writeAccessToken(null);
     setUser(null);
     setAdminCreds(null);
     persistUser(null);
@@ -296,8 +360,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       lang,
       setLang,
       tr,
-      theme,
-      toggleTheme,
       a11y,
       toggleA11y,
       reduceMotion,
@@ -308,6 +370,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       login,
       register,
       logout,
+      registerAuthOpener,
+      requireAuth,
       cart,
       cartCount: cart.length,
       addToCart,
@@ -319,7 +383,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       pushToast,
       dismissToast,
     }),
-    [lang, tr, theme, a11y, reduceMotion, user, adminCreds, cart, tariffs, tariffsLoading, toasts, pushToast],
+    [lang, tr, a11y, reduceMotion, user, adminCreds, cart, tariffs, tariffsLoading, toasts, pushToast, registerAuthOpener, requireAuth],
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

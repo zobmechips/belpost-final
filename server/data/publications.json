@@ -5,6 +5,7 @@
     "category": "politics",
     "title": "СБ. Беларусь сегодня",
     "period": "Еженедельно",
+    "year": 2026,
     "price": 3.9,
     "priceHalfYear": 22.0,
     "cover": "https://images.unsplash.com/photo-1504711434969-e33886168f5c?w=500&q=80"
@@ -15,6 +16,7 @@
     "category": "sport",
     "title": "Прессбол",
     "period": "Еженедельно",
+    "year": 2026,
     "price": 5.2,
     "priceHalfYear": 128.0,
     "cover": "https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=500&q=80"
@@ -25,6 +27,7 @@
     "category": "kids",
     "title": "Качели",
     "period": "Ежемесячно",
+    "year": 2025,
     "price": 7.8,
     "priceHalfYear": 42.5,
     "cover": "https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=500&q=80"
@@ -35,6 +38,7 @@
     "category": "culture",
     "title": "Культура",
     "period": "Ежемесячно",
+    "year": 2026,
     "price": 6.4,
     "priceHalfYear": 35.0,
     "cover": "https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=500&q=80"
@@ -45,6 +49,7 @@
     "category": "politics",
     "title": "Звязда",
     "period": "Ежедневно",
+    "year": 2025,
     "price": 3.8,
     "priceHalfYear": 20.4,
     "cover": "https://images.unsplash.com/photo-1586339949916-3e9457bef6d3?w=500&q=80"
@@ -55,9 +60,10 @@
     "category": "culture",
     "title": "Наша Ніва",
     "period": "Ежемесячно",
+    "year": 2025,
     "price": 12.5,
     "priceHalfYear": 68.0,
-    "cover": "https://images.unsplash.com/photo-1524995995648-beda9c2e4bf1?w=500&q=80"
+    "cover": "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=500&q=80"
   },
   {
     "id": "pub-football",
@@ -65,9 +71,10 @@
     "category": "sport",
     "title": "Футбол. Хоккей",
     "period": "Еженедельно",
+    "year": 2026,
     "price": 4.6,
     "priceHalfYear": 115.0,
-    "cover": "https://images.unsplash.com/photo-1461896836934-ffe607cd7f40?w=500&q=80"
+    "cover": "https://images.unsplash.com/photo-1579952363873-27f3bade9f55?w=500&q=80"
   },
   {
     "id": "pub-detsky",
@@ -75,6 +82,7 @@
     "category": "kids",
     "title": "Детский мир",
     "period": "Ежемесячно",
+    "year": 2025,
     "price": 8.7,
     "priceHalfYear": 47.0,
     "cover": "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=500&q=80"

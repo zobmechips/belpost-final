@@ -50,7 +50,7 @@ function FeedbackPage() {
           <p className="mt-2 mb-8 text-slate-600">{tr("feedback", "subtitle")}</p>
         </ScrollReveal>
         <ScrollReveal delay={0.1}>
-          <form onSubmit={(e) => void submit(e)} className="grid gap-4 rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+          <form onSubmit={(e) => void submit(e)} className="feedback-form grid gap-4 rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
             <label className="fluid-label">
               {tr("feedback", "name")}
               <input value={name} onChange={(e) => setName(e.target.value)} className="fluid-input" required />
@@ -61,9 +61,11 @@ function FeedbackPage() {
             </label>
             <label className="fluid-label">
               {tr("feedback", "message")}
-              <textarea value={message} onChange={(e) => setMessage(e.target.value)} className="fluid-input min-h-[120px]" required />
+              <textarea value={message} onChange={(e) => setMessage(e.target.value)} className="fluid-input min-h-[140px] resize-y" required />
             </label>
-            <ReCaptcha onChange={onCaptcha} />
+            <div className="feedback-captcha-block">
+              <ReCaptcha onChange={onCaptcha} />
+            </div>
             <motion.button type="submit" disabled={loading || !captchaToken} whileTap={{ scale: 0.98 }} className="btn-primary justify-center disabled:opacity-50">
               {loading ? "…" : tr("feedback", "submit")}
             </motion.button>

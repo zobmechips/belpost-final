@@ -116,6 +116,7 @@ const ru: TranslationTree = {
     tabLogin: "Вход",
     tabRegister: "Регистрация",
     email: "Email",
+    loginLabel: "Email или логин",
     password: "Пароль",
     confirmPassword: "Повторите пароль",
     name: "ФИО",
@@ -126,7 +127,6 @@ const ru: TranslationTree = {
     passwordMismatch: "Пароли не совпадают",
     passwordShort: "Пароль должен быть не менее 6 символов",
     welcome: "Добро пожаловать, {name}!",
-    adminHint: "Администратор: admin@belpost.by или логин admin",
   },
   cabinet: {
     title: "Личный кабинет",
@@ -357,6 +357,7 @@ const en: TranslationTree = {
     tabLogin: "Sign in",
     tabRegister: "Register",
     email: "Email",
+    loginLabel: "Email or login",
     password: "Password",
     confirmPassword: "Confirm password",
     name: "Full name",
@@ -367,7 +368,6 @@ const en: TranslationTree = {
     passwordMismatch: "Passwords do not match",
     passwordShort: "Password must be at least 6 characters",
     welcome: "Welcome, {name}!",
-    adminHint: "Admin: admin@belpost.by or login admin",
   },
   cabinet: {
     title: "Personal account",

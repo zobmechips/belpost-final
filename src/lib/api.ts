@@ -2,11 +2,34 @@ export type AdminCredentials = { login: string; password: string };
 
 export type NotificationItem = {
   id: string;
+  type?: "news" | "order";
   title: string;
   message: string;
   read: boolean;
+  link?: string;
   createdAt?: string;
 };
+
+const ACCESS_KEY = "belpost-access-token";
+
+function readAccessToken(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return localStorage.getItem(ACCESS_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function writeAccessToken(token: string | null) {
+  if (typeof window === "undefined") return;
+  try {
+    if (token) localStorage.setItem(ACCESS_KEY, token);
+    else localStorage.removeItem(ACCESS_KEY);
+  } catch {
+    // ignore
+  }
+}
 
 function adminHeaders(creds: AdminCredentials) {
   return {
@@ -16,33 +39,82 @@ function adminHeaders(creds: AdminCredentials) {
   };
 }
 
+function authHeaders(extra?: Record<string, string>) {
+  const token = readAccessToken();
+  return {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...extra,
+  };
+}
+
 async function parseResponse(r: Response) {
   const data = await r.json();
+  if (r.status === 429) {
+    throw new Error(data.message || "Превышен лимит запросов. Безопасность системы ограничила доступ на 1 минуту.");
+  }
   if (!r.ok) throw new Error(data.message || "Ошибка запроса");
   return data;
 }
 
+async function fetchJson(r: Response) {
+  const data = await r.json();
+  if (r.status === 429) {
+    throw new Error(data.message || "Превышен лимит запросов. Безопасность системы ограничила доступ на 1 минуту.");
+  }
+  return data;
+}
+
 export const api = {
-  tariffs: () => fetch("/api/tariffs").then((r) => r.json()),
+  tariffs: () => fetch("/api/tariffs").then(fetchJson),
   news: () => fetch("/api/news").then((r) => r.json()),
   publications: () => fetch("/api/publications").then((r) => r.json()),
   stamps: () => fetch("/api/stamps").then((r) => r.json()),
   reviews: () => fetch("/api/reviews").then((r) => r.json()),
   track: (id: string) =>
     fetch(`/api/track/${encodeURIComponent(id)}`).then(async (r) => {
-      const data = await r.json();
+      const data = await fetchJson(r);
       if (!r.ok) throw new Error(data.message || "Track error");
       return data;
     }),
-  login: (email: string, password: string) =>
+  login: (login: string, password: string) =>
     fetch("/api/auth/login", {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ login, password }),
+    }).then(parseResponse),
+  refresh: () =>
+    fetch("/api/auth/refresh", {
+      method: "POST",
+      credentials: "include",
+    }).then(parseResponse),
+  logout: () =>
+    fetch("/api/auth/logout", {
+      method: "POST",
+      credentials: "include",
+    }).then(parseResponse),
+  me: () =>
+    fetch("/api/auth/me", {
+      credentials: "include",
+      headers: authHeaders(),
+    }).then(parseResponse),
+  forgotPassword: (email: string) =>
+    fetch("/api/auth/forgot-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    }).then(parseResponse),
+  resetPassword: (token: string, password: string) =>
+    fetch("/api/auth/reset-password", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token, password }),
     }).then(parseResponse),
   register: (name: string, email: string, password: string) =>
     fetch("/api/auth/register", {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name, email, password }),
     }).then(parseResponse),
@@ -60,6 +132,27 @@ export const api = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
+    }).then(parseResponse),
+  sendNpes: (payload: {
+    userEmail: string;
+    recipient: string;
+    subject: string;
+    body: string;
+    attachmentName?: string;
+    recipientInSystem: boolean;
+  }) =>
+    fetch("/api/npes/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    }).then(parseResponse),
+  npesList: (email: string) => fetch(`/api/npes?email=${encodeURIComponent(email)}`).then(parseResponse),
+  transactions: (email: string) => fetch(`/api/user/transactions?email=${encodeURIComponent(email)}`).then(parseResponse),
+  topupEls: (email: string, amount: number) =>
+    fetch("/api/user/els/topup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, amount }),
     }).then(parseResponse),
   sendMessage: (payload: { name: string; email: string; message: string; captchaToken: string }) =>
     fetch("/api/messages", {
@@ -103,19 +196,56 @@ export const api = {
     fetch(`/api/admin/tracking/${id}`, { method: "PUT", headers: adminHeaders(creds), body: JSON.stringify(payload) }).then(parseResponse),
   adminDeleteTracking: (id: string, creds: AdminCredentials) =>
     fetch(`/api/admin/tracking/${id}`, { method: "DELETE", headers: adminHeaders(creds) }).then(parseResponse),
-  updateProfile: (email: string, data: { address?: string; phone?: string }) =>
+  updateProfile: (email: string, data: { address?: string; phone?: string; name?: string; consents?: { processing: boolean; marketing: boolean; analytics: boolean } }) =>
     fetch("/api/user/profile", {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      headers: authHeaders(),
       body: JSON.stringify({ email, ...data }),
+    }).then(parseResponse),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    fetch("/api/user/change-password", {
+      method: "POST",
+      credentials: "include",
+      headers: authHeaders(),
+      body: JSON.stringify({ currentPassword, newPassword }),
+    }).then(parseResponse),
+  deleteAccount: () =>
+    fetch("/api/user/account", {
+      method: "DELETE",
+      credentials: "include",
+      headers: authHeaders(),
+    }).then(parseResponse),
+  offices: () => fetch("/api/offices").then(fetchJson),
+  bookQueueTicket: (payload: { officeId: string; date: string; time: string; name: string }) =>
+    fetch("/api/queue/ticket", {
+      method: "POST",
+      credentials: "include",
+      headers: authHeaders(),
+      body: JSON.stringify(payload),
+    }).then(parseResponse),
+  chatHistory: () =>
+    fetch("/api/chat/history", { credentials: "include", headers: authHeaders() }).then(parseResponse),
+  saveChatHistory: (messages: { from: string; text: string }[]) =>
+    fetch("/api/chat/history", {
+      method: "PUT",
+      credentials: "include",
+      headers: authHeaders(),
+      body: JSON.stringify({ messages }),
     }).then(parseResponse),
   chat: (message: string) =>
     fetch("/api/chat", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      headers: authHeaders(),
       body: JSON.stringify({ message }),
     }).then(parseResponse),
-  notifications: () => fetch("/api/notifications").then((r) => r.json()) as Promise<NotificationItem[]>,
+  notifications: (email: string) =>
+    fetch(`/api/notifications?email=${encodeURIComponent(email)}`).then(async (r) => {
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.message || "Ошибка уведомлений");
+      return data as NotificationItem[];
+    }),
 };
 
 export function isValidTrackingId(id: string) {

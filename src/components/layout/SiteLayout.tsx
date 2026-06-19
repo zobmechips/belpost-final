@@ -1,7 +1,6 @@
-import { Link } from "@tanstack/react-router";
-import { useState, type ReactNode } from "react";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState, type ReactNode } from "react";
 import { AuthModal } from "@/components/auth/AuthModal";
-import { CabinetDrawer } from "@/components/auth/CabinetDrawer";
 import { Preloader } from "@/components/belpost/Preloader";
 import { ToastStack } from "@/components/belpost/ToastStack";
 import { CheckoutWizard } from "@/components/cart/CheckoutWizard";
@@ -9,7 +8,6 @@ import { HeroBackground, HeroCarousel } from "@/components/home/HeroCarousel";
 import { TrackingPanel } from "@/components/home/TrackingPanel";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { SideNav } from "@/components/layout/SideNav";
-import { ContactFab } from "@/components/support/ContactFab";
 import { CookieConsent } from "@/components/layout/CookieConsent";
 import { useApp } from "@/context/AppProvider";
 
@@ -19,19 +17,31 @@ type SiteLayoutProps = {
 };
 
 export function SiteLayout({ children, hero = false }: SiteLayoutProps) {
-  const { tr, toasts, dismissToast } = useApp();
+  const { tr, toasts, dismissToast, registerAuthOpener, requireAuth } = useApp();
+  const navigate = useNavigate();
 
   const [cartOpen, setCartOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
-  const [cabinetOpen, setCabinetOpen] = useState(false);
   const [heroSlideIndex, setHeroSlideIndex] = useState(0);
+
+  useEffect(() => {
+    registerAuthOpener(() => setAuthOpen(true));
+  }, [registerAuthOpener]);
+
+  const openCart = () => {
+    requireAuth(() => setCartOpen(true));
+  };
 
   const onAuthSuccess = (user: { role?: string }) => {
     if (user.role === "admin") {
       window.location.href = "/admin";
       return;
     }
-    setCabinetOpen(true);
+    void navigate({ to: "/cabinet" });
+  };
+
+  const openCabinet = () => {
+    requireAuth(() => void navigate({ to: "/cabinet" }));
   };
 
   return (
@@ -43,7 +53,7 @@ export function SiteLayout({ children, hero = false }: SiteLayoutProps) {
         <div className="hero-stage relative isolate overflow-hidden bg-[#1F6FD8]">
           <HeroBackground parallaxX={0} parallaxY={0} slideIndex={heroSlideIndex} />
           <div className="relative z-10">
-            <SiteHeader onCartOpen={() => setCartOpen(true)} onAuthOpen={() => setAuthOpen(true)} onCabinetOpen={() => setCabinetOpen(true)} />
+            <SiteHeader onCartOpen={openCart} onAuthOpen={() => setAuthOpen(true)} onCabinetOpen={openCabinet} />
             <div className="relative mx-auto max-w-[1400px] px-6">
               <HeroCarousel
                 slideIndex={heroSlideIndex}
@@ -55,7 +65,7 @@ export function SiteLayout({ children, hero = false }: SiteLayoutProps) {
         </div>
       ) : (
         <div className="bg-[#1F6FD8] pb-2">
-          <SiteHeader onCartOpen={() => setCartOpen(true)} onAuthOpen={() => setAuthOpen(true)} onCabinetOpen={() => setCabinetOpen(true)} />
+          <SiteHeader onCartOpen={openCart} onAuthOpen={() => setAuthOpen(true)} onCabinetOpen={openCabinet} />
         </div>
       )}
 
@@ -91,6 +101,7 @@ export function SiteLayout({ children, hero = false }: SiteLayoutProps) {
             <ul className="space-y-2 text-sm text-slate-600">
               <li><a href="tel:+375333000154" className="footer-link">{tr("header", "contactMts")}</a></li>
               <li><a href="tel:+375445900154" className="footer-link">{tr("header", "contactA1")}</a></li>
+              <li><a href="/about#offices-map" className="footer-link">Карта отделений</a></li>
               <li className="text-xs text-slate-400">{tr("sections", "contactHours")}</li>
             </ul>
           </div>
@@ -102,8 +113,6 @@ export function SiteLayout({ children, hero = false }: SiteLayoutProps) {
 
       <CheckoutWizard open={cartOpen} onClose={() => setCartOpen(false)} />
       <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} onSuccess={onAuthSuccess} />
-      <CabinetDrawer open={cabinetOpen} onClose={() => setCabinetOpen(false)} />
-      <ContactFab />
       <CookieConsent />
     </div>
   );

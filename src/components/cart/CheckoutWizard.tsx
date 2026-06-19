@@ -17,7 +17,7 @@ const slideVariants = {
 };
 
 export function CheckoutWizard({ open, onClose }: CheckoutWizardProps) {
-  const { cart, removeFromCart, clearCart, tr, pushToast, user } = useApp();
+  const { cart, removeFromCart, clearCart, tr, pushToast, user, requireAuth, setUser } = useApp();
   const [step, setStep] = useState(0);
   const [direction, setDirection] = useState(1);
   const [saving, setSaving] = useState(false);
@@ -30,10 +30,15 @@ export function CheckoutWizard({ open, onClose }: CheckoutWizardProps) {
     postalCode: "",
     address: "",
   });
+  const [paymentMethod, setPaymentMethod] = useState<"standard" | "els">("standard");
 
   const total = cart.reduce((s, i) => s + i.price * (i.qty ?? 1), 0);
 
   const goTo = (next: number) => {
+    if (next > 0 && !user) {
+      requireAuth();
+      return;
+    }
     if (next === 1) {
       if (!sender.name.trim() || !recipient.name.trim()) {
         pushToast("Заполните ФИО отправителя и получателя", "error");
@@ -69,17 +74,25 @@ export function CheckoutWizard({ open, onClose }: CheckoutWizardProps) {
   };
 
   const finish = async () => {
+    if (!user) {
+      requireAuth();
+      return;
+    }
     setSaving(true);
     try {
       const snapshot = [...cart];
       const result = await api.createOrder({
-        userEmail: user?.email ?? sender.email,
+        userEmail: user.email,
         sender,
         recipient,
         delivery,
         items: cart,
         total,
+        paymentMethod,
       });
+      if (paymentMethod === "els" && result.wallet != null) {
+        setUser({ ...user, wallet: result.wallet });
+      }
       clearCart();
       pushToast(tr("cart", "success"), "success");
       setReceipt({
@@ -192,12 +205,23 @@ export function CheckoutWizard({ open, onClose }: CheckoutWizardProps) {
                   </motion.div>
                 )}
                 {step === 2 && (
-                  <motion.div key="s2" custom={direction} variants={slideVariants} initial="enter" animate="center" exit="exit" className="space-y-2 text-sm">
+                  <motion.div key="s2" custom={direction} variants={slideVariants} initial="enter" animate="center" exit="exit" className="space-y-3 text-sm">
                     <h4 className="font-semibold">{tr("cart", "receipt")}</h4>
                     <p>{tr("cart", "sender")}: {sender.name}</p>
                     <p>{tr("cart", "recipient")}: {recipient.name}</p>
                     <p>{tr("cart", "deliveryMethod")}: {delivery.method === "courier" ? tr("cart", "courier") : tr("cart", "office")}</p>
                     <p className="text-lg font-bold text-brand">{tr("cart", "total")}: {total.toFixed(2)} BYN</p>
+                    <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                      <p className="mb-2 text-xs font-semibold uppercase text-slate-500">Способ оплаты</p>
+                      <label className="mb-2 flex items-center gap-2">
+                        <input type="radio" checked={paymentMethod === "standard"} onChange={() => setPaymentMethod("standard")} />
+                        Стандартная оплата
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input type="radio" checked={paymentMethod === "els"} onChange={() => setPaymentMethod("els")} />
+                        Списать с лицевого счёта ЭЛС ({(user?.wallet ?? 0).toFixed(2)} BYN)
+                      </label>
+                    </div>
                   </motion.div>
                 )}
               </AnimatePresence>

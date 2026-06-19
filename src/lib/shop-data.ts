@@ -4,6 +4,7 @@ export type Publication = {
   category: string;
   title: string;
   period: string;
+  year?: number;
   price: number;
   priceHalfYear: number;
   cover: string;
