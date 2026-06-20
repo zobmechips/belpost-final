@@ -47,12 +47,13 @@ export function SiteLayout({ children, hero = false }: SiteLayoutProps) {
   };
 
   return (
-    <motion.div
-      className="site-shell flex min-h-screen flex-col text-slate-800"
-      initial={{ opacity: 0, scale: 1.02, filter: "blur(6px)" }}
-      animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-      transition={{ duration: 0.85, ease: CONTENT_REVEAL_EASE }}
-    >
+    <>
+      <motion.div
+        className="site-shell flex min-h-screen flex-col text-slate-800"
+        initial={{ opacity: 0, scale: 1.02, filter: "blur(6px)" }}
+        animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+        transition={{ duration: 0.85, ease: CONTENT_REVEAL_EASE }}
+      >
       <a href="#main-content" className="skip-link">{tr("accessibility", "skipLink")}</a>
       <ToastStack toasts={toasts} onDismiss={dismissToast} />
       {hero ? (
@@ -119,7 +120,8 @@ export function SiteLayout({ children, hero = false }: SiteLayoutProps) {
 
       <CheckoutWizard open={cartOpen} onClose={() => setCartOpen(false)} />
       <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} onSuccess={onAuthSuccess} />
+      </motion.div>
       <CookieConsent />
-    </motion.div>
+    </>
   );
 }

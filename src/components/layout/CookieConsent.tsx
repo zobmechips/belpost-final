@@ -1,28 +1,38 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
-const STORAGE_KEY = "belpost-cookie-consent";
+const STORAGE_KEY = "cookie-accepted";
+
+function hasAcceptedCookies() {
+  if (typeof window === "undefined") return true;
+  return localStorage.getItem(STORAGE_KEY) === "true";
+}
 
 export function CookieConsent() {
+  const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    if (localStorage.getItem(STORAGE_KEY)) return;
-    const t = window.setTimeout(() => setVisible(true), 2000);
-    return () => window.clearTimeout(t);
+    setMounted(true);
+    if (!hasAcceptedCookies()) {
+      setVisible(true);
+    }
   }, []);
 
   const accept = () => {
-    localStorage.setItem(STORAGE_KEY, "1");
+    localStorage.setItem(STORAGE_KEY, "true");
     setVisible(false);
   };
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <AnimatePresence>
       {visible && (
         <motion.aside
-          className="fixed bottom-4 left-4 z-[80] w-[calc(100%-2rem)] max-w-md rounded-2xl border border-white/60 bg-white/75 p-4 shadow-[0_16px_48px_-20px_rgba(15,42,82,0.28)] backdrop-blur-xl sm:bottom-5 sm:left-5 sm:p-5"
+          className="fixed bottom-6 z-50 max-w-[400px] w-[calc(100%-2rem)] left-4 right-4 sm:left-6 sm:right-auto rounded-2xl border border-white/70 bg-white/90 p-4 shadow-xl backdrop-blur-md sm:bottom-6 sm:p-5"
           initial={{ opacity: 0, y: 28, scale: 0.97 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 16, scale: 0.98 }}
@@ -52,6 +62,7 @@ export function CookieConsent() {
           </div>
         </motion.aside>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 }
