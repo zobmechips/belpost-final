@@ -1,11 +1,14 @@
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowUp, MessageCircle, MessageSquare, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useSplashComplete } from "@/components/belpost/Preloader";
 import { useApp } from "@/context/AppProvider";
 import { api } from "@/lib/api";
 
 const CONSULTANT_AVATAR = "/consultant.png";
 const GREETING = "Здравствуйте! Я Анастасия, консультант Белпочты. Помогу с тарифами, отслеживанием посылок, подпиской и филателией.";
+const CHAT_AUTO_OPEN_DELAY_MS = 7000;
+const GREETING_TYPING_MS = 3000;
 
 /** Сбрасывается только при полной перезагрузи страницы (F5), не при SPA-навигации */
 const pageChatSession = { autoOpenScheduled: false };
@@ -160,6 +163,7 @@ function InstagramLogo() {
 
 export function ContactFab() {
   const { reduceMotion, user } = useApp();
+  const splashComplete = useSplashComplete();
   const [menuOpen, setMenuOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -214,19 +218,21 @@ export function ContactFab() {
     autoTimerRef.current = window.setTimeout(() => {
       setTyping(false);
       setMessages((prev) => (prev.length ? prev : [{ from: "bot", text: GREETING }]));
-    }, 3000);
+    }, GREETING_TYPING_MS);
   }, []);
 
   useEffect(() => {
-    if (isAuthUser || pageChatSession.autoOpenScheduled) return;
+    if (!splashComplete || isAuthUser || pageChatSession.autoOpenScheduled) return;
+
     pageChatSession.autoOpenScheduled = true;
     const timer = window.setTimeout(() => {
       setMenuOpen(false);
       setChatOpen(true);
       runGreeting();
-    }, 5000);
+    }, CHAT_AUTO_OPEN_DELAY_MS);
+
     return () => window.clearTimeout(timer);
-  }, [isAuthUser, runGreeting]);
+  }, [splashComplete, isAuthUser, runGreeting]);
 
   useEffect(() => () => {
     if (autoTimerRef.current) window.clearTimeout(autoTimerRef.current);

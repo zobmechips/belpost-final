@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { ScrollProgressBar } from "../components/belpost/ScrollProgressBar";
+import { SplashProvider } from "../components/belpost/Preloader";
 import { SmoothScrollProvider } from "../components/belpost/SmoothScrollProvider";
 import { AppProvider } from "../context/AppProvider";
 import { ContactFab } from "../components/support/ContactFab";
@@ -125,9 +126,11 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <AppProvider>
         <SmoothScrollProvider>
-          <ScrollProgressBar />
-          <Outlet />
-          <ContactFab />
+          <SplashProvider>
+            <ScrollProgressBar />
+            <Outlet />
+            <ContactFab />
+          </SplashProvider>
         </SmoothScrollProvider>
       </AppProvider>
     </QueryClientProvider>

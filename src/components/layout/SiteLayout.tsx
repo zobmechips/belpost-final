@@ -2,7 +2,6 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { motion } from "framer-motion";
 import { useEffect, useState, type ReactNode } from "react";
 import { AuthModal } from "@/components/auth/AuthModal";
-import { SplashProvider, useSplashRevealed } from "@/components/belpost/Preloader";
 import { ToastStack } from "@/components/belpost/ToastStack";
 import { CheckoutWizard } from "@/components/cart/CheckoutWizard";
 import { HeroBackground, HeroCarousel } from "@/components/home/HeroCarousel";
@@ -19,10 +18,9 @@ type SiteLayoutProps = {
 
 const CONTENT_REVEAL_EASE = [0.43, 0.13, 0.23, 0.96] as const;
 
-function SiteLayoutInner({ children, hero = false }: SiteLayoutProps) {
+export function SiteLayout({ children, hero = false }: SiteLayoutProps) {
   const { tr, toasts, dismissToast, registerAuthOpener, requireAuth } = useApp();
   const navigate = useNavigate();
-  const contentRevealed = useSplashRevealed();
 
   const [cartOpen, setCartOpen] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
@@ -51,12 +49,8 @@ function SiteLayoutInner({ children, hero = false }: SiteLayoutProps) {
   return (
     <motion.div
       className="site-shell flex min-h-screen flex-col text-slate-800"
-      initial={false}
-      animate={
-        contentRevealed
-          ? { opacity: 1, scale: 1, filter: "blur(0px)" }
-          : { opacity: 0, scale: 1.02, filter: "blur(6px)" }
-      }
+      initial={{ opacity: 0, scale: 1.02, filter: "blur(6px)" }}
+      animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
       transition={{ duration: 0.85, ease: CONTENT_REVEAL_EASE }}
     >
       <a href="#main-content" className="skip-link">{tr("accessibility", "skipLink")}</a>
@@ -127,13 +121,5 @@ function SiteLayoutInner({ children, hero = false }: SiteLayoutProps) {
       <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} onSuccess={onAuthSuccess} />
       <CookieConsent />
     </motion.div>
-  );
-}
-
-export function SiteLayout(props: SiteLayoutProps) {
-  return (
-    <SplashProvider>
-      <SiteLayoutInner {...props} />
-    </SplashProvider>
   );
 }

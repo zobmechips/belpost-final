@@ -3,8 +3,9 @@ import { createContext, useContext, useEffect, useLayoutEffect, useState, type R
 import { useApp } from "@/context/AppProvider";
 
 const INTRO_KEY = "belpost-intro-seen";
-const SPLASH_DURATION_MS = 4000;
-const PROGRESS_DURATION_S = 2.5;
+const SPLASH_DURATION_MS = 5000;
+const SPLASH_EXIT_S = 0.8;
+const PROGRESS_DURATION_S = 4;
 const EXIT_EASE = [0.43, 0.13, 0.23, 0.96] as const;
 const LETTER_EASE = [0.22, 1, 0.36, 1] as const;
 
@@ -16,66 +17,67 @@ const STATUS_LINES = [
 ];
 
 type SplashContextValue = {
-  contentRevealed: boolean;
+  splashComplete: boolean;
 };
 
-const SplashContext = createContext<SplashContextValue>({ contentRevealed: true });
+const SplashContext = createContext<SplashContextValue>({ splashComplete: false });
 
-export function useSplashRevealed() {
-  return useContext(SplashContext).contentRevealed;
+export function useSplashComplete() {
+  return useContext(SplashContext).splashComplete;
 }
 
 function shouldSkipSplash(reduceMotion: boolean) {
-  if (typeof window === "undefined") return true;
+  if (typeof window === "undefined") return false;
   return reduceMotion || sessionStorage.getItem(INTRO_KEY) === "1";
+}
+
+function readSplashBoot(reduceMotion: boolean) {
+  if (typeof window === "undefined") {
+    return { show: true, complete: false };
+  }
+  const skip = shouldSkipSplash(reduceMotion);
+  return { show: !skip, complete: skip };
 }
 
 export function SplashProvider({ children }: { children: ReactNode }) {
   const { reduceMotion } = useApp();
-  const [skip, setSkip] = useState(true);
-  const [contentRevealed, setContentRevealed] = useState(true);
+  const [showSplash, setShowSplash] = useState(() => readSplashBoot(false).show);
+  const [splashComplete, setSplashComplete] = useState(() => readSplashBoot(false).complete);
 
   useLayoutEffect(() => {
-    const shouldSkip = shouldSkipSplash(reduceMotion);
-    setSkip(shouldSkip);
-    if (!shouldSkip) setContentRevealed(false);
+    const boot = readSplashBoot(reduceMotion);
+    setShowSplash(boot.show);
+    setSplashComplete(boot.complete);
   }, [reduceMotion]);
 
+  const handleSplashExitComplete = () => {
+    sessionStorage.setItem(INTRO_KEY, "1");
+    setShowSplash(false);
+    setSplashComplete(true);
+  };
+
   return (
-    <SplashContext.Provider value={{ contentRevealed }}>
-      {children}
-      {!skip && (
-        <PreloaderOverlay
-          onReveal={() => setContentRevealed(true)}
-          onComplete={() => {
-            sessionStorage.setItem(INTRO_KEY, "1");
-          }}
-        />
-      )}
+    <SplashContext.Provider value={{ splashComplete }}>
+      {showSplash && <PreloaderOverlay onExitComplete={handleSplashExitComplete} />}
+      {splashComplete ? children : null}
     </SplashContext.Provider>
   );
 }
 
 type PreloaderOverlayProps = {
-  onReveal: () => void;
-  onComplete: () => void;
+  onExitComplete: () => void;
 };
 
-function PreloaderOverlay({ onReveal, onComplete }: PreloaderOverlayProps) {
+function PreloaderOverlay({ onExitComplete }: PreloaderOverlayProps) {
   const [visible, setVisible] = useState(true);
 
   useEffect(() => {
-    const revealTimer = window.setTimeout(onReveal, SPLASH_DURATION_MS);
     const hideTimer = window.setTimeout(() => setVisible(false), SPLASH_DURATION_MS);
-
-    return () => {
-      window.clearTimeout(revealTimer);
-      window.clearTimeout(hideTimer);
-    };
-  }, [onReveal]);
+    return () => window.clearTimeout(hideTimer);
+  }, []);
 
   return (
-    <AnimatePresence onExitComplete={onComplete}>
+    <AnimatePresence onExitComplete={onExitComplete}>
       {visible && <CinematicSplash key="belpost-splash" />}
     </AnimatePresence>
   );
@@ -100,10 +102,10 @@ function CinematicSplash() {
       aria-live="polite"
       aria-busy="true"
       aria-label="Загрузка Белпочты"
-      initial={{ opacity: 0 }}
+      initial={false}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0, scale: 1.05, y: -50 }}
-      transition={{ duration: 0.8, ease: EXIT_EASE }}
+      transition={{ duration: SPLASH_EXIT_S, ease: EXIT_EASE }}
       onPointerMove={handlePointerMove}
     >
       <div className="belpost-splash__base" aria-hidden />
@@ -193,9 +195,4 @@ function CinematicSplash() {
       </motion.div>
     </motion.div>
   );
-}
-
-/** @deprecated Use SplashProvider at layout root */
-export function Preloader() {
-  return null;
 }

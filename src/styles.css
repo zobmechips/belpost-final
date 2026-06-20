@@ -1955,50 +1955,7 @@ html.reduce-motion *::after {
   to { opacity: 1; transform: scale(1); }
 }
 
-/* ── Cookie consent ── */
-.cookie-consent {
-  position: fixed;
-  bottom: 1.25rem;
-  left: 50%;
-  z-index: 85;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 1rem;
-  width: min(94vw, 42rem);
-  padding: 1rem 1.25rem;
-  border-radius: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.6);
-  background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  box-shadow: 0 16px 48px -20px rgba(15, 42, 82, 0.25);
-  transform: translateX(-50%);
-}
-
-.cookie-consent-text {
-  flex: 1;
-  min-width: 200px;
-  font-size: 0.8125rem;
-  line-height: 1.55;
-  color: #475569;
-}
-
-.cookie-consent-link {
-  color: var(--brand);
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.cookie-consent-btn {
-  border-radius: 0.65rem;
-  background: var(--brand);
-  padding: 0.6rem 1.25rem;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: white;
-  white-space: nowrap;
-}
+/* ── Cookie consent: styles live in CookieConsent.tsx (Tailwind) ── */
 
 .recaptcha-wrap {
   overflow: hidden;
