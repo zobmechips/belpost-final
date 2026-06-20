@@ -90,7 +90,7 @@ function Index() {
 
   return (
     <SiteLayout hero>
-      <section id="quick-actions" className="mx-auto max-w-[1400px] px-6 pb-12 pt-20">
+      <section id="quick-actions" className="page-container pb-10 pt-12 sm:pb-12 sm:pt-16 lg:pt-20">
         <ScrollReveal className="mb-8"><h2 className="section-title">{tr("sections", "quickActions")}</h2></ScrollReveal>
         <ScrollRevealGroup className="card-grid-equal grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
           {quickTiles.map(({ icon: Icon, key, action }) => (
@@ -104,11 +104,11 @@ function Index() {
         </ScrollRevealGroup>
       </section>
 
-      <section id="online-services" className="mx-auto max-w-[1400px] px-6 pb-20">
+      <section id="online-services" className="page-container pb-16 sm:pb-20">
         <ScrollReveal>
-          <div className="mb-6 flex flex-wrap justify-between gap-3">
-            <h2 className="section-title">{tr("sections", "onlineServices")}</h2>
-            <div className="section-tabs" role="tablist">
+          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+            <h2 className="section-title shrink-0">{tr("sections", "onlineServices")}</h2>
+            <div className="section-tabs section-tabs-scroll min-w-0" role="tablist">
               {(["online", "services", "news"] as const).map((t) => (
                 <button
                   key={t}

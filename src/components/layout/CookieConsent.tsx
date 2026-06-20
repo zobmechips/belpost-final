@@ -32,7 +32,7 @@ export function CookieConsent() {
     <AnimatePresence>
       {visible && (
         <motion.aside
-          className="fixed bottom-6 z-50 max-w-[400px] w-[calc(100%-2rem)] left-4 right-4 sm:left-6 sm:right-auto rounded-2xl border border-white/70 bg-white/90 p-4 shadow-xl backdrop-blur-md sm:bottom-6 sm:p-5"
+          className="cookie-consent-banner fixed bottom-6 z-50 max-w-[400px] w-[calc(100%-2rem)] left-4 right-4 sm:left-6 sm:right-auto rounded-2xl border border-white/70 bg-white/90 p-4 shadow-xl backdrop-blur-md sm:bottom-6 sm:p-5 max-sm:bottom-[max(1.5rem,env(safe-area-inset-bottom))]"
           initial={{ opacity: 0, y: 28, scale: 0.97 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 16, scale: 0.98 }}

@@ -189,8 +189,8 @@ function AdminPage() {
   return (
     <main className="admin-shell min-h-screen">
       <ToastStack toasts={toasts} onDismiss={(id) => setToasts((p) => p.filter((t) => t.id !== id))} />
-      <div className="mx-auto flex max-w-[1400px] gap-6 p-6">
-        <aside className="admin-card w-64 shrink-0 self-start p-4">
+      <div className="page-container flex flex-col gap-4 py-4 sm:flex-row sm:gap-6 sm:py-6">
+        <aside className="admin-card w-full shrink-0 self-start p-4 sm:w-64">
           <p className="admin-kicker">Belpost Admin</p>
           <h1 className="text-lg font-bold text-slate-800">{user?.name}</h1>
           <p className="mb-4 text-xs text-slate-500">{user?.email}</p>

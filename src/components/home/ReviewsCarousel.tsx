@@ -2,6 +2,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ChevronLeft, ChevronRight, Star } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { ScrollReveal } from "@/components/belpost/ScrollReveal";
+import { useCarouselVisibleCount } from "@/hooks/use-breakpoint";
 import { api } from "@/lib/api";
 
 type Review = {
@@ -18,7 +19,7 @@ export function ReviewsCarousel() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [index, setIndex] = useState(0);
   const [direction, setDirection] = useState(1);
-  const visible = 3;
+  const visible = useCarouselVisibleCount();
 
   useEffect(() => {
     void api.reviews().then((data) => {
@@ -27,6 +28,10 @@ export function ReviewsCarousel() {
   }, []);
 
   const maxIndex = Math.max(0, reviews.length - visible);
+
+  useEffect(() => {
+    setIndex((i) => Math.min(i, maxIndex));
+  }, [maxIndex]);
 
   const go = useCallback((next: number) => {
     setDirection(next > index ? 1 : -1);
@@ -51,12 +56,12 @@ export function ReviewsCarousel() {
   const padded = slice.length < visible ? [...slice, ...reviews.slice(0, visible - slice.length)] : slice;
 
   return (
-    <section id="reviews" className="reviews-section mx-auto max-w-[1400px] px-6 py-16">
+    <section id="reviews" className="reviews-section page-container py-12 sm:py-16">
       <ScrollReveal>
         <div className="reviews-panel">
           <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
             <div>
-              <div className="mb-2 flex items-center gap-2">
+              <div className="mb-2 flex flex-wrap items-center gap-2">
                 <span className="reviews-score">5.0</span>
                 <span className="text-sm text-slate-500">из 5</span>
                 <div className="flex gap-0.5">
@@ -74,7 +79,7 @@ export function ReviewsCarousel() {
           <div className="reviews-carousel-track">
             <AnimatePresence mode="wait" custom={direction}>
               <motion.div
-                key={index}
+                key={`${index}-${visible}`}
                 custom={direction}
                 className="reviews-carousel-grid"
                 initial={{ opacity: 0, x: direction * 60 }}
@@ -85,7 +90,7 @@ export function ReviewsCarousel() {
                 {padded.map((r) => (
                   <article key={r.id} className="review-card">
                     <div className="flex items-center gap-3">
-                      <img src={r.avatar} alt="" className="h-10 w-10 shrink-0 rounded-full bg-slate-100" />
+                      <img src={r.avatar} alt="" className="h-10 w-10 shrink-0 rounded-full bg-slate-100" loading="lazy" decoding="async" />
                       <div className="min-w-0">
                         <p className="font-semibold text-slate-800">{r.name}</p>
                         <div className="flex flex-wrap items-center gap-2">
@@ -106,7 +111,7 @@ export function ReviewsCarousel() {
             </AnimatePresence>
           </div>
 
-          <div className="mt-6 flex items-center justify-between">
+          <div className="mt-6 flex items-center justify-between gap-3">
             <div className="flex gap-2">
               <button type="button" className="reviews-nav-btn" aria-label="Назад" onClick={() => go(index <= 0 ? maxIndex : index - 1)}>
                 <ChevronLeft className="h-4 w-4" />
@@ -116,7 +121,7 @@ export function ReviewsCarousel() {
               </button>
             </div>
             <div className="reviews-progress">
-              <motion.div className="reviews-progress-fill" animate={{ width: `${((index + 1) / (maxIndex + 1)) * 100}%` }} />
+              <motion.div className="reviews-progress-fill" animate={{ width: `${maxIndex === 0 ? 100 : ((index + 1) / (maxIndex + 1)) * 100}%` }} />
             </div>
           </div>
         </div>

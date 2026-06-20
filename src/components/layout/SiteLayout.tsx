@@ -8,6 +8,7 @@ import { HeroBackground, HeroCarousel } from "@/components/home/HeroCarousel";
 import { TrackingPanel } from "@/components/home/TrackingPanel";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { SideNav } from "@/components/layout/SideNav";
+import { TabletBottomNav } from "@/components/layout/TabletBottomNav";
 import { CookieConsent } from "@/components/layout/CookieConsent";
 import { useApp } from "@/context/AppProvider";
 
@@ -61,7 +62,7 @@ export function SiteLayout({ children, hero = false }: SiteLayoutProps) {
           <HeroBackground parallaxX={0} parallaxY={0} slideIndex={heroSlideIndex} />
           <div className="relative z-10">
             <SiteHeader onCartOpen={openCart} onAuthOpen={() => setAuthOpen(true)} onCabinetOpen={openCabinet} />
-            <div className="relative mx-auto max-w-[1400px] px-6">
+            <div className="relative mx-auto page-container">
               <HeroCarousel
                 slideIndex={heroSlideIndex}
                 onSlideChange={(index) => setHeroSlideIndex(index)}
@@ -82,7 +83,7 @@ export function SiteLayout({ children, hero = false }: SiteLayoutProps) {
       </div>
 
       <footer id="footer" className="site-footer mt-auto border-t border-slate-100">
-        <div className="mx-auto grid max-w-[1400px] gap-8 px-6 py-12 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="page-container grid gap-8 py-10 sm:grid-cols-2 sm:py-12 lg:grid-cols-4">
           <div>
             <p className="font-display text-lg font-bold text-slate-800">БЕЛПОЧТА</p>
             <p className="mt-2 text-sm text-slate-500">{tr("header", "tagline")}</p>
@@ -120,6 +121,7 @@ export function SiteLayout({ children, hero = false }: SiteLayoutProps) {
 
       <CheckoutWizard open={cartOpen} onClose={() => setCartOpen(false)} />
       <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} onSuccess={onAuthSuccess} />
+      <TabletBottomNav />
       </motion.div>
       <CookieConsent />
     </>

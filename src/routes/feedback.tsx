@@ -44,7 +44,7 @@ function FeedbackPage() {
 
   return (
     <SiteLayout>
-      <div className="mx-auto max-w-xl px-6 py-8">
+      <div className="page-container page-container--form py-8">
         <ScrollReveal>
           <h1 className="section-title">{tr("feedback", "title")}</h1>
           <p className="mt-2 mb-8 text-slate-600">{tr("feedback", "subtitle")}</p>

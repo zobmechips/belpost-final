@@ -18,7 +18,7 @@ function PrivacyPage() {
 
   return (
     <SiteLayout>
-      <div className="mx-auto max-w-3xl px-6 py-12">
+      <div className="page-container page-container--narrow py-12">
         <ScrollReveal>
           <h1 className="section-title mb-6">{tr("common", "privacy")}</h1>
           <div className="prose prose-slate max-w-none space-y-4 text-sm leading-relaxed text-slate-600">

@@ -153,9 +153,9 @@ export function HeroCarousel({ slideIndex, onSlideChange }: HeroCarouselProps) {
         : { t1: slide.title1, t2: slide.title2, sub: slide.subtitle };
 
   return (
-    <div className="flex min-h-[460px] items-center">
+    <div className="flex min-h-[min(460px,68vh)] items-center sm:min-h-[400px] lg:min-h-[460px]">
       <div className="relative w-full max-w-xl text-white">
-        <div className="relative min-h-[240px]">
+        <div className="relative min-h-[min(200px,38vh)] sm:min-h-[220px] lg:min-h-[240px]">
           <AnimatePresence initial={false} custom={direction}>
             <motion.div
               key={slide.id}

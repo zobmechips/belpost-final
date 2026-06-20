@@ -33,7 +33,7 @@ function AboutPage() {
 
   return (
     <SiteLayout>
-      <div className="mx-auto max-w-[1400px] px-6 py-8">
+      <div className="page-container py-8">
         <ScrollReveal>
           <h1 className="section-title mb-4">{tr("about", "title")}</h1>
           <h2 className="mb-4 text-xl font-semibold text-brand">{tr("about", "history")}</h2>

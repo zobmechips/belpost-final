@@ -62,7 +62,7 @@ function ExpressDeliveryPage() {
 
   return (
     <SiteLayout>
-      <div className="express-page mx-auto max-w-[1100px] px-6 py-10">
+      <div className="express-page page-container page-container--express py-10">
         <ScrollReveal>
           <p className="express-eyebrow">E-Commerce Elite</p>
           <h1 className="section-title">Доставка за 2 часа</h1>

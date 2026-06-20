@@ -17,7 +17,7 @@ const FEATURES = [
 function EcommerceElitePage() {
   return (
     <SiteLayout>
-      <div className="express-page mx-auto max-w-[1000px] px-6 py-10">
+      <div className="express-page page-container page-container--ecommerce py-10">
         <ScrollReveal>
           <p className="express-eyebrow">Премиальный сервис</p>
           <h1 className="section-title">E-Commerce «Элит»</h1>

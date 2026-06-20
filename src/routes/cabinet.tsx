@@ -92,7 +92,7 @@ function CabinetPage() {
   if (!user || user.role === "admin") {
     return (
       <SiteLayout>
-        <div className="mx-auto max-w-lg px-6 py-20 text-center">
+        <div className="page-container page-container--form py-20 text-center">
           <p className="text-muted-foreground">Войдите в личный кабинет для доступа к профилю.</p>
           <Link to="/" className="btn-primary mt-6 inline-flex">На главную</Link>
         </div>
@@ -160,7 +160,7 @@ function CabinetPage() {
 
   return (
     <SiteLayout>
-      <div className="cabinet-page mx-auto max-w-5xl px-4 py-8 sm:px-6">
+      <div className="cabinet-page page-container page-container--cabinet py-8">
         <header className="cabinet-page-header">
           <div>
             <h1 className="section-title">{tr("cabinet", "title")}</h1>
@@ -300,7 +300,8 @@ function CabinetPage() {
               {orders.length === 0 ? (
                 <p className="text-sm text-slate-500">{tr("cabinet", "noOrders")}</p>
               ) : (
-                <table className="cabinet-orders-table w-full text-sm">
+                <div className="cabinet-table-wrap -mx-1 overflow-x-auto px-1">
+                  <table className="cabinet-orders-table w-full min-w-[32rem] text-sm">
                   <thead>
                     <tr>
                       <th>Дата</th>
@@ -325,6 +326,7 @@ function CabinetPage() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               )}
             </section>
           )}

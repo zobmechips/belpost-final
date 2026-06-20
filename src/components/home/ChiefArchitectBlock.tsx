@@ -29,7 +29,7 @@ export function ChiefArchitectBlock() {
   };
 
   return (
-    <section id="developer" className="developer-section mx-auto max-w-[1400px] px-6 py-16">
+    <section id="developer" className="developer-section page-container py-12 sm:py-16">
       <ScrollReveal>
         <div className="developer-card">
           <div className="developer-grid">

@@ -50,7 +50,7 @@ function ResetPasswordPage() {
 
   return (
     <SiteLayout>
-      <div className="mx-auto max-w-md px-6 py-16">
+      <div className="page-container page-container--form py-16">
         <h1 className="section-title mb-6">Сброс пароля</h1>
         {done ? (
           <div className="space-y-4 text-sm text-muted-foreground">
